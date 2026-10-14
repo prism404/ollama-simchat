@@ -16,6 +16,7 @@
     "db:seed-demo": "node src/db/seed-demo.ts",
     "db:chat-context": "node src/db/check-chat-context.ts",
     "chat:prompt": "node src/chat/check-prompt.ts",
+    "test:memory": "node --test src/memory/*.test.ts",
     "memory:propose": "node src/memory/check-memory-candidates.ts"
   },
   "engines": {

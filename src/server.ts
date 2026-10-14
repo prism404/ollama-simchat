@@ -19,6 +19,18 @@ import {
 
 import { buildModelMessages } from "./chat/prompt-builder.ts";
 
+import { proposeMemories } from "./memory/memory-extractor.ts";
+import {
+  listConversationMemories,
+  saveMemoryProposals,
+  reviewMemory,
+} from "./memory/memory-repository.ts";
+import {
+  MemoryWorkflowError,
+  parsePositiveId,
+  parseMemoryStatus,
+} from "./memory/memory-types.ts";
+
 const HOST = "127.0.0.1";
 const PORT = Number(process.env.PORT ?? 3000);
 
@@ -175,167 +187,262 @@ function readJsonBody(request: IncomingMessage): Promise<ChatRequestBody> {
   });
 }
 
-const server = createServer(
-  async (request: IncomingMessage, response: ServerResponse) => {
-    if (request.method === "OPTIONS") {
-      sendJson(response, 204, {});
-      return;
-    }
+export function createAppServer(
+  extractMemories: typeof proposeMemories = proposeMemories,
+) {
+  return createServer(
+    async (request: IncomingMessage, response: ServerResponse) => {
+      if (request.method === "OPTIONS") {
+        sendJson(response, 204, {});
+        return;
+      }
 
-    const url = new URL(
-      request.url ?? "/",
-      `http://${request.headers.host ?? `${HOST}:${PORT}`}`,
-    );
+      const url = new URL(
+        request.url ?? "/",
+        `http://${request.headers.host ?? `${HOST}:${PORT}`}`,
+      );
 
-    if (request.method === "GET" && url.pathname === "/api/health") {
-      const ollama = await checkOllama();
+      if (request.method === "GET" && url.pathname === "/api/health") {
+        const ollama = await checkOllama();
 
-      sendJson(response, 200, {
-        application: "ok",
-        ollama,
-      });
+        sendJson(response, 200, {
+          application: "ok",
+          ollama,
+        });
 
-      return;
-    }
+        return;
+      }
 
-    const conversationMessagesMatch = url.pathname.match(
-      /^\/api\/conversations\/(\d+)\/messages$/,
-    );
-
-    if (request.method === "POST" && conversationMessagesMatch) {
-      try {
-        const conversationId = Number(conversationMessagesMatch[1]);
-
-        const body = await readJsonBody(request);
-
-        if (
-          typeof body.message !== "string" ||
-          body.message.trim().length === 0
-        ) {
-          sendJson(response, 400, {
-            error: 'Le champ "message" est obligatoire.',
-          });
-
-          return;
-        }
-
-        const userMessage = body.message.trim();
-
-        const context = loadConversationContext(conversationId);
-
-        const modelMessages = buildModelMessages(context, userMessage);
-
-        const stream = await generateMessagesStream(modelMessages);
-
-        savePersonaMessage(conversationId, context.persona.id, userMessage);
-
-        const characterResponse = await streamOllamaResponse(stream, response);
-
-        if (characterResponse) {
-          saveCharacterMessage(
-            conversationId,
-            context.character.id,
-            characterResponse,
+      const memoriesRoute = url.pathname.match(
+        /^\/api\/conversations\/([^/]+)\/memories(\/propose)?$/,
+      );
+      const reviewRoute = url.pathname.match(
+        /^\/api\/memories\/([^/]+)\/review$/,
+      );
+      if (memoriesRoute || reviewRoute) {
+        try {
+          if (reviewRoute && request.method === "POST") {
+            const id = parsePositiveId(reviewRoute[1]);
+            let body: unknown;
+            try {
+              body = await readJsonBody(request);
+            } catch {
+              throw new MemoryWorkflowError(400, "Objet JSON invalide.");
+            }
+            sendJson(response, 200, reviewMemory(id, body));
+          } else if (memoriesRoute) {
+            const id = parsePositiveId(memoriesRoute[1]);
+            if (!memoriesRoute[2] && request.method === "GET") {
+              if (
+                url.searchParams.getAll("status").length > 1 ||
+                [...url.searchParams.keys()].some((key) => key !== "status")
+              ) {
+                throw new MemoryWorkflowError(
+                  400,
+                  "Paramètres de filtre invalides.",
+                );
+              }
+              sendJson(response, 200, {
+                memories: listConversationMemories(
+                  id,
+                  parseMemoryStatus(url.searchParams.get("status")),
+                ),
+              });
+            } else if (memoriesRoute[2] && request.method === "POST") {
+              // Establish existence before the potentially slow model request.
+              listConversationMemories(id);
+              let result: Awaited<ReturnType<typeof proposeMemories>>;
+              try {
+                result = await extractMemories(id);
+              } catch (error) {
+                throw new MemoryWorkflowError(
+                  502,
+                  error instanceof Error
+                    ? error.message
+                    : "Échec de l'extraction.",
+                );
+              }
+              const saved = saveMemoryProposals(
+                result.context,
+                result.proposals,
+              );
+              sendJson(response, saved.created.length ? 201 : 200, {
+                memories: saved.created,
+                existing: saved.existing,
+                createdCount: saved.created.length,
+                duplicateCount: saved.existing.length,
+                model: result.model,
+                totalDurationMs: result.totalDurationMs,
+              });
+            } else {
+              sendJson(response, 405, { error: "Méthode non autorisée." });
+            }
+          } else {
+            sendJson(response, 405, { error: "Méthode non autorisée." });
+          }
+        } catch (error) {
+          if (!(error instanceof MemoryWorkflowError)) console.error(error);
+          sendJson(
+            response,
+            error instanceof MemoryWorkflowError ? error.status : 500,
+            {
+              error:
+                error instanceof MemoryWorkflowError
+                  ? error.message
+                  : "Erreur interne du workflow mémoire.",
+            },
           );
         }
-      } catch (error) {
-        console.error(error);
+        return;
+      }
 
-        if (!response.headersSent) {
+      const conversationMessagesMatch = url.pathname.match(
+        /^\/api\/conversations\/(\d+)\/messages$/,
+      );
+
+      if (request.method === "POST" && conversationMessagesMatch) {
+        try {
+          const conversationId = Number(conversationMessagesMatch[1]);
+
+          const body = await readJsonBody(request);
+
+          if (
+            typeof body.message !== "string" ||
+            body.message.trim().length === 0
+          ) {
+            sendJson(response, 400, {
+              error: 'Le champ "message" est obligatoire.',
+            });
+
+            return;
+          }
+
+          const userMessage = body.message.trim();
+
+          const context = loadConversationContext(conversationId);
+
+          const modelMessages = buildModelMessages(context, userMessage);
+
+          const stream = await generateMessagesStream(modelMessages);
+
+          savePersonaMessage(conversationId, context.persona.id, userMessage);
+
+          const characterResponse = await streamOllamaResponse(
+            stream,
+            response,
+          );
+
+          if (characterResponse) {
+            saveCharacterMessage(
+              conversationId,
+              context.character.id,
+              characterResponse,
+            );
+          }
+        } catch (error) {
+          console.error(error);
+
+          if (!response.headersSent) {
+            sendJson(response, 502, {
+              error:
+                error instanceof Error ? error.message : "Erreur inconnue.",
+            });
+          } else if (!response.writableEnded) {
+            response.end("\n[La génération a été interrompue.]");
+          }
+        }
+
+        return;
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/chat/stream") {
+        try {
+          const body = await readJsonBody(request);
+
+          if (
+            typeof body.message !== "string" ||
+            body.message.trim().length === 0
+          ) {
+            sendJson(response, 400, {
+              error: 'Le champ "message" est obligatoire.',
+            });
+
+            return;
+          }
+
+          const stream = await generateReplyStream({
+            message: body.message.trim(),
+
+            systemPrompt:
+              typeof body.systemPrompt === "string"
+                ? body.systemPrompt
+                : DEFAULT_SYSTEM_PROMPT,
+          });
+
+          await streamOllamaResponse(stream, response);
+        } catch (error) {
+          console.error(error);
+
+          if (!response.headersSent) {
+            sendJson(response, 502, {
+              error:
+                error instanceof Error ? error.message : "Erreur inconnue.",
+            });
+          } else {
+            response.end("\n[La génération a été interrompue.]");
+          }
+        }
+
+        return;
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/chat") {
+        try {
+          const body = await readJsonBody(request);
+
+          if (
+            typeof body.message !== "string" ||
+            body.message.trim().length === 0
+          ) {
+            sendJson(response, 400, {
+              error: 'Le champ "message" est obligatoire.',
+            });
+
+            return;
+          }
+
+          const result = await generateReply({
+            message: body.message.trim(),
+
+            systemPrompt:
+              typeof body.systemPrompt === "string"
+                ? body.systemPrompt
+                : DEFAULT_SYSTEM_PROMPT,
+          });
+
+          sendJson(response, 200, result);
+        } catch (error) {
+          console.error(error);
+
           sendJson(response, 502, {
             error: error instanceof Error ? error.message : "Erreur inconnue.",
           });
-        } else if (!response.writableEnded) {
-          response.end("\n[La génération a été interrompue.]");
         }
+
+        return;
       }
 
-      return;
-    }
+      sendJson(response, 404, {
+        error: "Endpoint introuvable.",
+      });
+    },
+  );
+}
 
-    if (request.method === "POST" && url.pathname === "/api/chat/stream") {
-      try {
-        const body = await readJsonBody(request);
-
-        if (
-          typeof body.message !== "string" ||
-          body.message.trim().length === 0
-        ) {
-          sendJson(response, 400, {
-            error: 'Le champ "message" est obligatoire.',
-          });
-
-          return;
-        }
-
-        const stream = await generateReplyStream({
-          message: body.message.trim(),
-
-          systemPrompt:
-            typeof body.systemPrompt === "string"
-              ? body.systemPrompt
-              : DEFAULT_SYSTEM_PROMPT,
-        });
-
-        await streamOllamaResponse(stream, response);
-      } catch (error) {
-        console.error(error);
-
-        if (!response.headersSent) {
-          sendJson(response, 502, {
-            error: error instanceof Error ? error.message : "Erreur inconnue.",
-          });
-        } else {
-          response.end("\n[La génération a été interrompue.]");
-        }
-      }
-
-      return;
-    }
-
-    if (request.method === "POST" && url.pathname === "/api/chat") {
-      try {
-        const body = await readJsonBody(request);
-
-        if (
-          typeof body.message !== "string" ||
-          body.message.trim().length === 0
-        ) {
-          sendJson(response, 400, {
-            error: 'Le champ "message" est obligatoire.',
-          });
-
-          return;
-        }
-
-        const result = await generateReply({
-          message: body.message.trim(),
-
-          systemPrompt:
-            typeof body.systemPrompt === "string"
-              ? body.systemPrompt
-              : DEFAULT_SYSTEM_PROMPT,
-        });
-
-        sendJson(response, 200, result);
-      } catch (error) {
-        console.error(error);
-
-        sendJson(response, 502, {
-          error: error instanceof Error ? error.message : "Erreur inconnue.",
-        });
-      }
-
-      return;
-    }
-
-    sendJson(response, 404, {
-      error: "Endpoint introuvable.",
-    });
-  },
-);
-
-server.listen(PORT, HOST, () => {
-  console.log(`API disponible sur http://${HOST}:${PORT}`);
-  console.log(`Test : http://${HOST}:${PORT}/api/health`);
-});
+if (import.meta.main) {
+  const server = createAppServer();
+  server.listen(PORT, HOST, () => {
+    console.log(`API disponible sur http://${HOST}:${PORT}`);
+    console.log(`Test : http://${HOST}:${PORT}/api/health`);
+  });
+}

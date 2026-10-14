@@ -448,4 +448,4 @@ END;
 
 INSERT INTO app_meta(key, value)
 VALUES ('schema_version', '1')
-ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP;
+ON CONFLICT(key) DO NOTHING;

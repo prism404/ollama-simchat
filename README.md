@@ -109,3 +109,64 @@ ORDER BY importance DESC, created_at;
 For the first model benchmark, start with `qwen3.5:9b` and compare it with
 `gemma4:e4b` using the same French/mixed-language scenes. BGE-M3 is reserved for
 embeddings; it is not the dialogue model.
+
+## Memory review workflow
+
+Run `npm run db:init` once after pulling these changes, before starting the API.
+It applies the version 2 migration in a transaction and preserves existing data.
+Running it again is safe. Do not delete or recreate your database.
+
+Start the API with `npm start`. Ollama must be running with the configured
+`OLLAMA_MODEL` for extraction. The existing `npm run memory:propose -- 1` command
+remains a read-only preview.
+
+The API uses these statuses (with their existing SQLite equivalents): `pending`
+(`proposed`), `accepted` (`approved`), `corrected`, `rejected`, `superseded`.
+
+```sh
+# Extract and persist proposals with their source messages.
+curl -X POST http://127.0.0.1:3000/api/conversations/1/memories/propose
+
+# List pending proposals, including scores, source excerpts and review history.
+curl 'http://127.0.0.1:3000/api/conversations/1/memories?status=pending'
+
+# Omit the filter to include reviewed proposals and their history.
+curl http://127.0.0.1:3000/api/conversations/1/memories
+
+# Replace 42 with a returned memory ID; review each pending proposal only once.
+curl -X POST http://127.0.0.1:3000/api/memories/42/review \
+  -H 'Content-Type: application/json' -d '{"decision":"accept"}'
+
+curl -X POST http://127.0.0.1:3000/api/memories/43/review \
+  -H 'Content-Type: application/json' \
+  -d '{"decision":"reject","reason":"Souvenir non pertinent"}'
+
+curl -X POST http://127.0.0.1:3000/api/memories/44/review \
+  -H 'Content-Type: application/json' \
+  -d '{"decision":"correct","title":"Préférence pour les lieux calmes","content":"Le persona déteste les lieux très bruyants et souhaite privilégier les lieux calmes.","reason":"Reformulation plus fidèle"}'
+```
+
+A correction validates the corrected text. Each decision records the original
+and resulting title/content, reason and timestamp in `memory_reviews`, in the
+same transaction as the memory update. Reviewed proposals return HTTP 409 if
+reviewed again. Invalid input returns 400, missing resources 404, and extraction
+failures 502 without persisting partial proposals.
+
+Extraction returns `memories` (new rows), `existing` (identical proposals already
+stored), `createdCount`, `duplicateCount`, `model` and `totalDurationMs`. It returns
+201 when rows were created, otherwise 200. Identity includes the conversation,
+character/persona/relationship, type, scope, title, content, event date and sorted
+source IDs; changing confidence, importance, emotional weight or keywords alone
+does not create another identical proposal. The immutable fingerprint survives
+correction and rejection. This is exact deduplication, not semantic similarity.
+
+Only active accepted/corrected memories are eligible for future context use.
+This release does not inject memories into chat prompts or add embeddings.
+Historical rows remain unchanged; those with message sources can be listed via
+their source conversations. Historical reviews have null titles when these were
+not originally recorded.
+
+Run `npm run test:memory` for automated date and workflow checks. Workflow tests
+use a disposable database and simulated extraction, exercising the actual HTTP
+routes without requiring Ollama or modifying your database. Manual extraction
+with the first request above verifies your real Ollama connection.
