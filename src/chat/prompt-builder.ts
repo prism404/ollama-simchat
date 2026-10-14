@@ -1,3 +1,5 @@
+import type { RelevantMemory } from "../memory/memory-types.ts";
+import { formatMemorySection } from "../memory/memory-retrieval.ts";
 import type { ConversationContext } from "../db/chat-repository.ts";
 
 export type ModelMessage = {
@@ -51,7 +53,10 @@ ${example.anti_pattern}
     .join("\n\n");
 }
 
-export function buildSystemPrompt(context: ConversationContext): string {
+export function buildSystemPrompt(
+  context: ConversationContext,
+  memories: readonly RelevantMemory[] = [],
+): string {
   return `
 Tu incarnes exclusivement ${context.character.name}.
 
@@ -168,6 +173,8 @@ ${context.scene.currentAction || "Non renseignée"}
 Atmosphère :
 ${context.scene.atmosphere || "Non renseignée"}
 
+${formatMemorySection(memories)}
+
 CONSIGNES DE STYLE
 
 Ces indications définissent uniquement la manière de répondre.
@@ -186,11 +193,12 @@ ${context.dialogueExamples
 export function buildModelMessages(
   context: ConversationContext,
   newUserMessage: string,
+  memories: readonly RelevantMemory[] = [],
 ): ModelMessage[] {
   const messages: ModelMessage[] = [
     {
       role: "system",
-      content: buildSystemPrompt(context),
+      content: buildSystemPrompt(context, memories),
     },
   ];
 

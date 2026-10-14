@@ -29,6 +29,7 @@ type ConversationRow = {
   behavior_rules_json: string;
   immutable_facts_json: string;
 
+  relationship_id: number | null;
   relationship_label: string | null;
   relationship_context: string | null;
 
@@ -102,6 +103,7 @@ export function loadConversationContext(
         core.behavior_rules_json,
         core.immutable_facts_json,
 
+        relationship.id AS relationship_id,
         relationship.current_label AS relationship_label,
         relationship.initial_context AS relationship_context,
 
@@ -146,7 +148,9 @@ export function loadConversationContext(
         WHEN story_character.role = 'main' THEN 0
         ELSE 1
         END,
-        persona.is_default DESC
+        persona.is_default DESC,
+        character.id ASC,
+        persona.id ASC
 
       LIMIT 1
     `,
@@ -254,6 +258,7 @@ export function loadConversationContext(
       },
 
       relationship: {
+        id: conversation.relationship_id,
         label: conversation.relationship_label ?? "",
         initialContext: conversation.relationship_context ?? "",
       },

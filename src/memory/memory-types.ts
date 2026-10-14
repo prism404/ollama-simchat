@@ -278,3 +278,12 @@ export function parseMemoryReview(value: unknown): MemoryReview {
     reason: read("reason"),
   };
 }
+
+export type RelevantMemory = {
+  id: number;
+  memoryType: string;
+  scope: string;
+  title: string;
+  content: string;
+  eventDatetime: string | null;
+};

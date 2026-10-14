@@ -19,6 +19,7 @@ import {
 
 import { buildModelMessages } from "./chat/prompt-builder.ts";
 
+import { loadRelevantMemories } from "./memory/memory-retrieval.ts";
 import { proposeMemories } from "./memory/memory-extractor.ts";
 import {
   listConversationMemories,
@@ -189,6 +190,7 @@ function readJsonBody(request: IncomingMessage): Promise<ChatRequestBody> {
 
 export function createAppServer(
   extractMemories: typeof proposeMemories = proposeMemories,
+  streamMessages: typeof generateMessagesStream = generateMessagesStream,
 ) {
   return createServer(
     async (request: IncomingMessage, response: ServerResponse) => {
@@ -321,9 +323,14 @@ export function createAppServer(
 
           const context = loadConversationContext(conversationId);
 
-          const modelMessages = buildModelMessages(context, userMessage);
+          const memories = loadRelevantMemories(context, userMessage);
+          const modelMessages = buildModelMessages(
+            context,
+            userMessage,
+            memories,
+          );
 
-          const stream = await generateMessagesStream(modelMessages);
+          const stream = await streamMessages(modelMessages);
 
           savePersonaMessage(conversationId, context.persona.id, userMessage);
 

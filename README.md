@@ -160,8 +160,9 @@ source IDs; changing confidence, importance, emotional weight or keywords alone
 does not create another identical proposal. The immutable fingerprint survives
 correction and rejection. This is exact deduplication, not semantic similarity.
 
-Only active accepted/corrected memories are eligible for future context use.
-This release does not inject memories into chat prompts or add embeddings.
+Only active accepted/corrected memories are eligible for context use.
+The conversation endpoint retrieves relevant memories locally as described below;
+embeddings are not implemented.
 Historical rows remain unchanged; those with message sources can be listed via
 their source conversations. Historical reviews have null titles when these were
 not originally recorded.
@@ -170,3 +171,51 @@ Run `npm run test:memory` for automated date and workflow checks. Workflow tests
 use a disposable database and simulated extraction, exercising the actual HTTP
 routes without requiring Ollama or modifying your database. Manual extraction
 with the first request above verifies your real Ollama connection.
+
+
+## Relevant memory retrieval v1
+
+`POST /api/conversations/:conversationId/messages` now includes a bounded
+`SOUVENIRS VALIDÉS PERTINENTS` section in the system prompt. Only SQLite statuses
+`approved`/`corrected` with lifecycle `active` are eligible. Corrected memories
+use the corrected title/content. No review metadata, raw sources or technical
+scores are sent to the model. The stateless `/api/chat` endpoints are unchanged.
+
+Isolation is strict: the scope's required ID must match the current character,
+story, relationship or persona, and **every additional non-null attachment must
+also match**. A missing current relationship cannot match relationship memories.
+This v1 prioritizes avoiding leaks between stories and characters; persona
+memories tied to a different story are excluded even for the same persona.
+Truly unattached global/persona memories still require their principal scope ID.
+Broader cross-story persona memory sharing can be reconsidered later.
+
+SQLite FTS5 searches title/content/keywords using safely quoted Unicode terms
+combined with **OR**. Common French/English words are removed; at most 24 distinct
+terms are used. The existing Unicode tokenizer handles accent-insensitive
+matching. Lexical matches are ordered by BM25 (title weight 3, content 1,
+keywords 2), then importance descending, absolute emotional weight descending,
+and ID ascending. Up to two active validated relationship/persona memories with
+importance **at least 3** provide a fallback, including when the query is empty,
+contains only stopwords, or matches nothing. Fallback ordering uses importance,
+absolute emotional weight and ID. Both paths apply identical isolation filters.
+
+Lexical results precede fallback additions; IDs are deduplicated. The defaults in
+`src/memory/memory-retrieval.ts` limit selection to eight memories and 3,000
+characters for the entire formatted memory section (including instructions and
+JSON escaping). Oversized entries are skipped rather than truncated. Options can
+adjust limits for development/tests. No section is emitted for an empty selection.
+No second model is called. Retrieval uses a read-only SQLite connection and does
+not update `recall_count` or `last_recalled_at`. No schema migration is needed.
+
+Inspect selection without Ollama:
+
+```sh
+npm run chat:prompt -- 1
+npm run chat:prompt -- 1 "Où souhaiterais-tu passer la soirée ?"
+```
+
+The command prints selected memory IDs and useful memory fields **before** the
+final model messages. The conversation must exist in the selected local database;
+`CHARACTER_CHAT_DB` can point to a separate database for disposable checks.
+`npm run test:memory` covers the retrieval rules and outbound streaming prompt
+with temporary databases and simulated model transport, without Ollama.
