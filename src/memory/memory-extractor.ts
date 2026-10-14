@@ -2,7 +2,10 @@ import {
   generateStructuredReply,
   type OllamaMessage,
 } from "../ollama/client.ts";
-import { loadMemoryExtractionContext } from "./memory-repository.ts";
+import {
+  loadMemoryExtractionContext,
+  type MemorySourceMessage,
+} from "./memory-repository.ts";
 import {
   parseMemoryProposalResult,
   type MemoryProposalResult,
@@ -169,6 +172,15 @@ EXEMPLES À CONSERVER
 - « Ma sœur s'appelle Alice. » : fait personnel explicite.
 - Le narrateur annonce qu'un événement important a réellement eu lieu.
 
+RÈGLES POUR EVENT_DATETIME
+
+- eventDatetime vaut null par défaut.
+- Renseigne eventDatetime uniquement si une date ou une heure est explicitement donnée dans les messages sources.
+- N'invente et ne déduis jamais une date à partir de la date actuelle, de la date du message ou du contexte.
+- Une préférence générale ne possède pas de date d'événement.
+- Les expressions vagues comme « un jour », « plus tard » ou « la prochaine fois » ne doivent pas être transformées en date ISO.
+- Si aucune preuve temporelle explicite n'existe dans les messages sources, retourne obligatoirement null.
+
 PORTÉE
 
 - persona : information durable concernant le persona humain ;
@@ -193,6 +205,95 @@ function formatMessages(
         `[messageId=${message.id}; sequence=${message.sequenceNumber}; sender=${message.senderType}]\n${message.content}`,
     )
     .join("\n\n");
+}
+
+// Conservative allowlist: unsupported or incomplete dates remain null rather
+// than being completed using the clock, message metadata or model assumptions.
+function explicitTemporalValues(content: string): Set<string> {
+  const values = new Set<string>();
+  for (const match of content.matchAll(/\b(\d{4})-(\d{2})-(\d{2})\b/g)) {
+    values.add(match[0]);
+  }
+  for (const match of content.matchAll(
+    /\b(\d{1,2})[/.](\d{1,2})[/.](\d{4})\b/g,
+  )) {
+    values.add(
+      `${match[3]}-${match[2].padStart(2, "0")}-${match[1].padStart(2, "0")}`,
+    );
+  }
+  const months = [
+    "janvier",
+    "février",
+    "mars",
+    "avril",
+    "mai",
+    "juin",
+    "juillet",
+    "août",
+    "septembre",
+    "octobre",
+    "novembre",
+    "décembre",
+  ];
+  const namedDate = new RegExp(
+    `\\b(\\d{1,2})(?:er)?\\s+(${months.join("|")})\\s+(\\d{4})\\b`,
+    "gi",
+  );
+  for (const match of content.matchAll(namedDate)) {
+    const month = months.indexOf(match[2].toLowerCase()) + 1;
+    values.add(
+      `${match[3]}-${String(month).padStart(2, "0")}-${match[1].padStart(2, "0")}`,
+    );
+  }
+  for (const match of content.matchAll(
+    /(?<![\d:])(\d{1,2})(?::|\s*h\s*)([0-5]\d)?(?![\d:])/gi,
+  )) {
+    // A colon requires minutes; "14 h" explicitly means 14:00.
+    if (Number(match[1]) > 23 || (!match[2] && match[0].includes(":")))
+      continue;
+    values.add(`${match[1].padStart(2, "0")}:${match[2] ?? "00"}`);
+  }
+  return values;
+}
+
+export function validateMemoryEventDatetimes(
+  proposals: MemoryProposalResult,
+  messages: readonly Pick<MemorySourceMessage, "id" | "content">[],
+): MemoryProposalResult {
+  const sources = new Map(
+    messages.map((message) => [message.id, message.content]),
+  );
+  return {
+    memories: proposals.memories.map((memory) => {
+      const candidate = memory.eventDatetime;
+      const contents = memory.sourceMessageIds.map(
+        (id) => sources.get(id) ?? "",
+      );
+      const evidence = new Set(
+        contents.flatMap((content) => [...explicitTemporalValues(content)]),
+      );
+      // An exact ISO timestamp may retain its explicit seconds/timezone. Otherwise
+      // accept only fully evidenced dates and minute-precision local times.
+      const exactTimestamp =
+        candidate !== null &&
+        /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:\d{2})?$/.test(
+          candidate,
+        ) &&
+        contents.some((content) => content.includes(candidate));
+      const parts = candidate?.match(
+        /^(?:(\d{4}-\d{2}-\d{2})(?:[T ](\d{2}:\d{2}))?|(\d{2}:\d{2}))$/,
+      );
+      const supported =
+        exactTimestamp ||
+        (parts !== null &&
+          parts !== undefined &&
+          parts
+            .slice(1)
+            .filter(Boolean)
+            .every((part) => evidence.has(part)));
+      return { ...memory, eventDatetime: supported ? candidate : null };
+    }),
+  };
 }
 
 export async function proposeMemories(
@@ -245,7 +346,10 @@ ${formatMessages(context)}
 
   return {
     context,
-    proposals: parseMemoryProposalResult(result.content, allowedMessageIds),
+    proposals: validateMemoryEventDatetimes(
+      parseMemoryProposalResult(result.content, allowedMessageIds),
+      context.messages,
+    ),
     model: result.model,
     totalDurationMs: result.totalDurationMs,
   };
