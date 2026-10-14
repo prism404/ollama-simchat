@@ -1,0 +1,31 @@
+# Dépendances
+node_modules/
+
+# Base locale et données personnelles
+data/
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+
+# Variables d'environnement et secrets
+.env
+.env.*
+!.env.example
+
+# Fichiers de test temporaires
+/test-message.json
+/test-follow-up.json
+/test-memory.json
+
+# Résultats générés
+dist/
+coverage/
+*.log
+npm-debug.log*
+
+# Système et éditeur
+.DS_Store
+Thumbs.db
+.vscode/

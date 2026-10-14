@@ -1,0 +1,29 @@
+{
+  "name": "local-character-chat",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Local-first character chat memory core using SQLite and Ollama",
+  "scripts": {
+    "dev": "node --watch src/server.ts",
+    "start": "node src/server.ts",
+    "typecheck": "tsc --noEmit",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "format:check": "prettier --check \"src/**/*.ts\"",
+    "db:init": "node src/db/init.ts",
+    "db:check": "node src/db/check.ts",
+    "db:inspect": "node src/db/inspect.ts",
+    "db:seed-demo": "node src/db/seed-demo.ts",
+    "db:chat-context": "node src/db/check-chat-context.ts",
+    "chat:prompt": "node src/chat/check-prompt.ts",
+    "memory:propose": "node src/memory/check-memory-candidates.ts"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "prettier": "^3.9.10",
+    "typescript": "^7.0.2"
+  }
+}
