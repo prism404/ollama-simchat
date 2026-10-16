@@ -1,5 +1,11 @@
 # Local Character Chat — memory core
 
+## Suivi du projet
+
+- [Fiche projet](docs/PROJET.md)
+- [Backlog et tâches](docs/BACKLOG.md)
+- [Journal des tests et validations](docs/TESTS.md)
+
 This repository currently contains the first database foundation for a private,
 local character chat application. It uses Node.js 24 and SQLite with no external
 runtime dependencies.
