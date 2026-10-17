@@ -8,7 +8,7 @@ sont pas attribuées lorsque seul l'ordre des échanges est connu.
 
 | Commande | Dernier résultat observé | Contexte |
 | --- | --- | --- |
-| `npm run test:memory` | 31 réussis dans Codex ; dernière exécution Windows partagée : 29 réussis | Bases temporaires, sans Ollama |
+| `npm run test:memory` | 32 réussis dans Codex ; dernière exécution Windows partagée : 31 réussis | Bases temporaires, sans Ollama |
 | `npm run format:check` | Réussi après correctif des fins de ligne | Codex et Windows |
 | `npm run typecheck` | Réussi | Codex et Windows |
 | `npm run db:check` | Version 2, intégrité `ok`, zéro erreur de clé étrangère, 38 tables/vues | Codex et Windows |
@@ -148,3 +148,22 @@ personnelle ni répéter le seed sur celle-ci pour préparer un test.
 - Observé :
 - Verdict : réussi / échoué / ignoré / non exécuté.
 - Limites et action suivante :
+
+
+## 17 octobre 2026 — première web app
+
+React/Vite ajouté avec deux routes de lecture pour lister les conversations et
+leurs messages courants (corrections de messages respectées). La suite compte
+32 tests ; le nouveau test HTTP vérifie aussi les accents, une apostrophe,
+les caractères japonais et un emoji. Le contrôle TypeScript couvre l'interface.
+
+Parcours Chromium sur base temporaire et transport de génération simulé :
+chargement d'une conversation, envoi UTF-8, réponse en streaming, extraction,
+correction avec motif, acceptation, refus avec motif, filtres, récupération après
+une erreur de génération simulée, consultation de l'historique et affichage mobile sans
+débordement horizontal. Aucune erreur JavaScript observée. Compilation web réussie.
+Ces essais ne remplacent pas la vérification locale avec le vrai Ollama.
+
+Aucune migration de schéma, aucun seed dans la base personnelle, aucune réécriture
+des messages existants. L'encodage des anciennes sources affichées avec `�`
+reste à diagnostiquer séparément (V02).

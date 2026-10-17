@@ -1,6 +1,6 @@
 # Fiche projet — Ollama SimChat
 
-État de référence : 16 octobre 2026. Projet personnel de prism404.
+État de référence : 17 octobre 2026. Projet personnel de prism404.
 
 ## Objectif
 
@@ -9,8 +9,9 @@ exécutée localement avec Ollama. Le personnage doit conserver une identité st
 suivre une histoire et une relation, et utiliser des souvenirs durables dont
 l'utilisatrice contrôle la validation.
 
-La priorité actuelle est la fiabilité du contexte et de la mémoire, avant
-l'interface graphique, les embeddings et les synthèses avancées.
+Le socle mémoire est accompagné d’une première interface web locale pour le chat
+et la revue. La priorité reste la fiabilité ; embeddings et synthèses avancées
+viendront ensuite.
 
 ## Socle technique
 
@@ -20,6 +21,7 @@ l'interface graphique, les embeddings et les synthèses avancées.
 | API | Serveur HTTP Node.js, réponses en streaming |
 | Stockage | SQLite intégré à Node.js, schéma version 2 |
 | Recherche | FTS5 local : titre, contenu et mots-clés |
+| Interface | React, Vite, TypeScript ; navigateur local |
 | Génération | Ollama ; modèle testé localement : `mistral-small3.2:24b` |
 | Contrôles | Tests Node.js, TypeScript, Prettier, intégrité SQLite |
 | Développement | VS Code sur Windows et environnement Codex séparé |
@@ -54,8 +56,9 @@ L'extraction n'est pas automatique après chaque message. Le script
 
 Les tables préparent déjà plusieurs usages futurs, mais leur présence ne signifie
 pas que les workflows correspondants sont implémentés : embeddings, synthèses,
-contradictions, évolution du personnage et interface utilisateur restent à définir
-ou à développer. Voir le [backlog](BACKLOG.md).
+contradictions et évolution du personnage restent à définir ou à développer.
+L’interface web initiale existe ; la création/édition des personnages et histoires
+depuis celle-ci reste à développer. Voir le [backlog](BACKLOG.md).
 
 ## Règles de travail
 

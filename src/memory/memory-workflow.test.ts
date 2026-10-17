@@ -358,3 +358,28 @@ test("l'ordre des sources et les scores ne changent pas l'identité d'une propos
   assert.equal(result.existing.length, 1);
   assert.equal(result.existing[0].status, "corrected");
 });
+
+test("web : conversations, historique UTF-8 et validation des identifiants", async () => {
+  const conversations = await request("/api/conversations");
+  assert.equal(conversations.status, 200);
+  assert.ok(
+    conversations.body.conversations.some((c: { id: number }) => c.id === 1),
+  );
+  assert.equal(typeof conversations.body.conversations[0].storyTitle, "string");
+  const content = "Été, café, cœur : j’aime les lieux très calmes. 日本語 🌿";
+  const inserted = db
+    .prepare(
+      `INSERT INTO messages(conversation_id, sequence_number, sender_type, content)
+    VALUES (1, 99, 'narrator', ?)`,
+    )
+    .run(content);
+  const history = await request("/api/conversations/1/messages");
+  assert.equal(history.status, 200);
+  assert.equal(history.body.messages.at(-1).content, content);
+  assert.equal(
+    history.body.messages.at(-1).id,
+    Number(inserted.lastInsertRowid),
+  );
+  assert.equal((await request("/api/conversations/999/messages")).status, 404);
+  assert.equal((await request("/api/conversations/abc/messages")).status, 400);
+});

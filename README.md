@@ -225,3 +225,49 @@ final model messages. The conversation must exist in the selected local database
 `CHARACTER_CHAT_DB` can point to a separate database for disposable checks.
 `npm run test:memory` covers the retrieval rules and outbound streaming prompt
 with temporary databases and simulated model transport, without Ollama.
+
+## Web app locale — première version
+
+L'interface React permet de sélectionner une conversation existante, relire
+l'historique, discuter en streaming et gérer les souvenirs (sources, acceptation,
+correction, refus et historique). Elle affiche aussi l'état d'Ollama. Les nouvelles
+saisies passent en JSON UTF-8 ; les anciens messages ne sont jamais réécrits.
+
+Après `git pull origin main`, arrêter l'ancienne API puis lancer :
+
+```sh
+npm install
+npm run db:init
+npm start
+```
+
+Dans **un second terminal**, depuis le même dossier :
+
+```sh
+npm run web
+```
+
+Ouvrir `http://127.0.0.1:5173` dans le navigateur local. Garder les deux terminaux
+ouverts et démarrer Ollama avec le modèle configuré pour les générations.
+L'interface transmet `/api` à l'API locale sur le port 3000. Si l'API utilise un
+autre port, définir `SIMCHAT_API_URL` avant `npm run web`. Le serveur web reste
+lié à l'ordinateur local et n'est pas un déploiement public.
+
+Aucune donnée de démonstration n'est créée automatiquement. La première version
+utilise les conversations présentes dans la base ; création/édition de personnages
+et d'histoires et création de conversations depuis l'interface viendront plus tard.
+Une conversation non active reste consultable mais l'envoi est désactivé.
+
+L'extraction mémoire peut prendre plusieurs minutes ; attendre le résultat sans
+relancer la même action. Accepter/corriger/refuser modifie la vraie base, comme les
+commandes curl. La correction vaut validation du nouveau texte. Les sources et
+les décisions antérieures restent consultables.
+
+Contrôles : `npm run typecheck` vérifie aussi l'interface ; `npm run web:build`
+construit les fichiers dans `dist/web`. `npm run web:preview` permet de tester
+cette compilation localement, avec l'API toujours démarrée séparément.
+
+Pour un essai manuel : envoyer un message accentué, attendre la réponse en streaming,
+ouvrir Souvenirs, chercher des propositions, consulter une source puis valider
+une proposition. Recharger la page pour vérifier la persistance. Utiliser une base
+séparée pour les scénarios expérimentaux.

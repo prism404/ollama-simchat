@@ -24,6 +24,7 @@ proposé = idée non encore engagée. Les priorités proposées restent à arbit
 | F13 | Afficher les identifiants dans `chat:prompt`, sans Ollama | `e4a39ba` ; sortie locale `[1]` confirmée |
 | F14 | Compatibilité du formatage Windows/Linux | `e306d49` ; `format:check` confirmé sur Windows après correction |
 | F15 | Fiche projet, backlog et journal de tests | Documents du dossier `docs/` |
+| F16 | Web app React/Vite locale : chat, historique, souvenirs, connexion | Compilation, tests API et parcours Chromium avec génération simulée |
 
 ## À vérifier
 
@@ -38,7 +39,6 @@ proposé = idée non encore engagée. Les priorités proposées restent à arbit
 
 | ID | Priorité proposée | Tâche | Critère à préciser avant développement |
 | --- | --- | --- | --- |
-| P01 | Haute | Interface de revue des souvenirs | Consulter les sources et accepter/corriger/refuser sans commandes curl |
 | P02 | Moyenne | Création et édition des personnages, personas et histoires | Remplacer les données de démonstration via une interface adaptée |
 | P03 | Moyenne | Déduplication des reformulations | Détecter les propositions équivalentes sans fusionner des faits distincts |
 | P04 | Moyenne | Sauvegarde et restauration de la base | Procédure documentée et restauration testée sur une copie |

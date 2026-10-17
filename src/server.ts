@@ -1,4 +1,8 @@
 import {
+  listConversations,
+  listConversationMessages,
+} from "./db/web-repository.ts";
+import {
   createServer,
   type IncomingMessage,
   type ServerResponse,
@@ -212,6 +216,42 @@ export function createAppServer(
           ollama,
         });
 
+        return;
+      }
+
+      if (request.method === "GET" && url.pathname === "/api/conversations") {
+        try {
+          sendJson(response, 200, { conversations: listConversations() });
+        } catch (error) {
+          console.error(error);
+          sendJson(response, 500, {
+            error: "Impossible de charger les conversations.",
+          });
+        }
+        return;
+      }
+      const historyRoute = url.pathname.match(
+        /^\/api\/conversations\/([^/]+)\/messages$/,
+      );
+      if (request.method === "GET" && historyRoute) {
+        try {
+          sendJson(response, 200, {
+            messages: listConversationMessages(
+              parsePositiveId(historyRoute[1]),
+            ),
+          });
+        } catch (error) {
+          sendJson(
+            response,
+            error instanceof MemoryWorkflowError ? error.status : 500,
+            {
+              error:
+                error instanceof MemoryWorkflowError
+                  ? error.message
+                  : "Impossible de charger les messages.",
+            },
+          );
+        }
         return;
       }
 
