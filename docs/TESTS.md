@@ -8,7 +8,7 @@ sont pas attribuées lorsque seul l'ordre des échanges est connu.
 
 | Commande | Dernier résultat observé | Contexte |
 | --- | --- | --- |
-| `npm run test:memory` | 43 réussis dans Codex ; dernière exécution Windows partagée : 31 réussis | Bases temporaires, sans Ollama |
+| `npm run test:memory` | 48 réussis dans Codex ; dernière exécution Windows partagée : 31 réussis | Bases temporaires, sans Ollama |
 | `npm run format:check` | Réussi après correctif des fins de ligne | Codex et Windows |
 | `npm run typecheck` | Réussi | Codex et Windows |
 | `npm run db:check` | Codex : version 3, intégrité `ok`, zéro erreur, 39 tables/vues ; dernière preuve Windows : version 2 | Bases distinctes |
@@ -219,3 +219,20 @@ fiche dépassant 1 000 px de large sur une fenêtre de 1 500 px, import de deux 
 choix d'avatar visible dans la navigation, rechargement conservant genre, exemples
 et images, absence de débordement mobile et d'erreur JavaScript. Base temporaire.
 Aucune génération d'image ni mesure de vitesse réelle sur Ollama effectuée.
+
+
+## 17 octobre 2026 — création guidée et analyse visuelle
+
+Cinq tests supplémentaires : détection de la vision par capacités avec erreurs
+partielles ; envoi multi-images et description proposée ; refus des modèles texte,
+entrées invalides et réponses vides ; indisponibilité d'Ollama sans invention de
+résultat ; composition contextualisée de la personnalité. Modèle et transport
+simulés pour les essais vision. Total : 48 tests réussis.
+
+Parcours Chromium sur base temporaire : ajout de dix PNG avant création, sélection
+du cinquième comme avatar, analyse simulée des dix vues, apparence initiale inchangée
+avant clic d'application, guide de personnalité appliqué explicitement, sauvegarde
+et rechargement des dix images et de la fiche. Aucun débordement mobile ni erreur
+JavaScript observé. L'analyse réelle et la qualité de la description restent à
+vérifier sur les références de l'utilisatrice et son modèle vision. Aucun changement
+de schéma depuis v3. L'analyse ne constitue pas une génération d'image.

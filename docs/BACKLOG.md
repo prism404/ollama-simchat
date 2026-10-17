@@ -30,6 +30,9 @@ proposé = idée non encore engagée. Les priorités proposées restent à arbit
 | F19 | Fiche pleine largeur, choix homme/femme, modèle de description et exemples multiples | Données versionnées ; compatibilité avec les fiches existantes |
 | F20 | Avatar et galerie de références locales | Migration v3 non destructive ; import et avatar vérifiés dans Chromium |
 | F21 | Choix du modèle de dialogue et retour de streaming plus précoce | Modèles installés ; délai affiché ; effet réel sur la vitesse à mesurer sur Windows |
+| F22 | Images préparées dans la fiche avant création et choix d’avatar à l’enregistrement | Dix références vérifiées dans Chromium ; reprise des ajouts après erreur partielle |
+| F23 | Description physique proposée depuis les références | Détection des capacités vision, analyse explicite et application manuelle ; vrai Ollama à vérifier localement |
+| F24 | Guide de personnalité contextualisé | Quatre dimensions, proposition éditable et application explicite, sans appel IA |
 
 ## À vérifier
 

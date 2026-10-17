@@ -809,3 +809,54 @@ main {
   color: #8b927f;
   margin: 8px 0;
 }
+.integrated-gallery {
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+.reference-choice {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  margin: 8px 0;
+}
+.reference-choice input {
+  width: auto;
+}
+.vision-tools,
+.personality-guide {
+  border-top: 1px solid #e0e4d8;
+  margin-top: 24px;
+  padding-top: 18px;
+}
+.vision-proposal {
+  background: #f4f6ee;
+  border-radius: 8px;
+  padding: 18px;
+  margin-top: 18px;
+}
+.personality-guide {
+  margin-bottom: 22px;
+  font-size: 13px;
+}
+.personality-guide summary {
+  font-weight: 600;
+  color: #294c40;
+}
+.personality-guide > p {
+  margin-top: 14px;
+}
+.guide-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 15px;
+}
+.guide-grid select {
+  white-space: normal;
+}
+@media (max-width: 700px) {
+  .guide-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

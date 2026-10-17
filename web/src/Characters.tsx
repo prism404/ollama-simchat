@@ -1,6 +1,7 @@
 import { CHARACTER_TEMPLATE } from "./character-template";
-import { CharacterGallery } from "./CharacterGallery";
-import { useEffect, useState } from "react";
+import { PersonalityGuide } from "./PersonalityGuide";
+import { CharacterGallery, type GalleryHandle } from "./CharacterGallery";
+import { useEffect, useState, useRef } from "react";
 
 type Form = {
   gender: string;
@@ -83,6 +84,9 @@ export function Characters({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const gallery = useRef<GalleryHandle>(null);
+  const [mediaBusy, setMediaBusy] = useState(false);
+  const [mediaDirty, setMediaDirty] = useState(false);
   const [personas, setPersonas] = useState<{ id: number; name: string }[]>([]);
   const [persona, setPersona] = useState("new");
   const [story, setStory] = useState({
@@ -147,6 +151,7 @@ export function Characters({
     }
   }
   async function save() {
+    if (busy || mediaBusy) return;
     setBusy(true);
     setError("");
     setNotice("");
@@ -158,6 +163,16 @@ export function Characters({
       const saved = await request<Detail>(`/api/characters/${result.id}`);
       setDetail(saved);
       setForm(saved.form);
+      try {
+        await gallery.current?.flush(result.id);
+      } catch (error) {
+        setError(
+          `La fiche est enregistrée. Certaines images ou l’avatar restent à enregistrer : ${(error as Error).message}`,
+        );
+        await load();
+        await onChanged?.();
+        return;
+      }
       await load();
       await onChanged?.();
       setNotice(`Fiche enregistrée · version ${saved.version}.`);
@@ -257,7 +272,7 @@ export function Characters({
         <>
           <button
             className="text-button"
-            disabled={busy}
+            disabled={busy || mediaBusy}
             onClick={() => {
               setMode("list");
               setError("");
@@ -339,7 +354,29 @@ export function Characters({
               )}
             </fieldset>
             <fieldset disabled={busy}>
+              <legend>Images et apparence</legend>
+              <CharacterGallery
+                ref={gallery}
+                id={detail?.id}
+                disabled={busy}
+                onWorking={setMediaBusy}
+                onPendingChange={setMediaDirty}
+                onAppearance={(text) => update("appearance", text)}
+                onChanged={onChanged}
+                referencePrompt={`PERSONNAGE : ${form.name}
+GENRE : ${form.gender || "non défini"}
+TRAITS VISUELS STABLES : ${form.appearance || "à préciser"}
+SCÈNE : [décrire le lieu, l’action, la tenue et l’éclairage]
+Conserver l’identité et les traits des images de référence. Adapter la scène sans changer le visage.`}
+              />
+            </fieldset>
+            <fieldset disabled={busy}>
               <legend>02 · Personnalité</legend>
+              <PersonalityGuide
+                disabled={busy || mediaBusy}
+                onApply={(text) => update("personality", text)}
+              />
+
               {field(
                 "personality",
                 "Traits de caractère",
@@ -348,12 +385,15 @@ export function Characters({
               {field(
                 "values",
                 "Valeurs",
-                "Ce qui compte pour ce personnage. Une valeur par ligne.",
+                "Exemple : loyauté — tient ses engagements même quand cela devient inconfortable. Choisis 2 ou 3 valeurs et montre comment elles influencent ses décisions.",
               )}
               {field(
                 "motivations",
                 "Motivations",
-                "Ce qu’il cherche, ce qui le fait avancer.",
+                `Objectif concret : …
+Pourquoi cela compte : …
+Obstacle ou hésitation : …
+Ce qui peut le faire évoluer : …`,
               )}
             </fieldset>
             <fieldset disabled={busy}>
@@ -449,7 +489,7 @@ export function Characters({
               </button>
             </fieldset>
             <div className="actions">
-              <button disabled={busy || !form.name.trim()}>
+              <button disabled={busy || mediaBusy || !form.name.trim()}>
                 {busy ? "Enregistrement…" : "Enregistrer la fiche"}
               </button>
               {detail && (
@@ -457,7 +497,10 @@ export function Characters({
                   type="button"
                   className="secondary"
                   disabled={
-                    busy || JSON.stringify(form) !== JSON.stringify(detail.form)
+                    busy ||
+                    mediaBusy ||
+                    mediaDirty ||
+                    JSON.stringify(form) !== JSON.stringify(detail.form)
                   }
                   onClick={() => void prepareStory(detail)}
                 >
@@ -471,17 +514,6 @@ export function Characters({
               commencer l’histoire.
             </p>
           </form>
-          {detail && (
-            <CharacterGallery
-              id={detail.id}
-              onChanged={onChanged}
-              referencePrompt={`PERSONNAGE : ${form.name}
-GENRE : ${form.gender || "non défini"}
-TRAITS VISUELS STABLES : ${form.appearance || "à préciser"}
-SCÈNE : [décrire le lieu, l’action, la tenue et l’éclairage]
-Conserver l’identité et les traits des images de référence. Adapter la scène sans changer le visage.`}
-            />
-          )}
           {detail && (
             <details>
               <summary>Versions conservées ({detail.versions.length})</summary>

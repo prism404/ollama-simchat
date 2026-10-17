@@ -1,3 +1,4 @@
+import { listVisionModels, describeAppearance } from "./ollama/vision.ts";
 import {
   listCharacterImages,
   saveCharacterImage,
@@ -269,6 +270,41 @@ export function createAppServer(
                 error instanceof MemoryWorkflowError
                   ? error.message
                   : "Impossible de charger les messages.",
+            },
+          );
+        }
+        return;
+      }
+
+      if (
+        url.pathname === "/api/vision/models" ||
+        url.pathname === "/api/vision/appearance"
+      ) {
+        try {
+          if (url.pathname === "/api/vision/models" && request.method === "GET")
+            sendJson(response, 200, await listVisionModels());
+          else if (
+            url.pathname === "/api/vision/appearance" &&
+            request.method === "POST"
+          ) {
+            let body: unknown;
+            try {
+              body = await readJsonBody(request);
+            } catch (error) {
+              if (error instanceof MemoryWorkflowError) throw error;
+              throw new MemoryWorkflowError(400, "Objet JSON invalide.");
+            }
+            sendJson(response, 200, await describeAppearance(body));
+          } else sendJson(response, 405, { error: "Méthode non autorisée." });
+        } catch (error) {
+          sendJson(
+            response,
+            error instanceof MemoryWorkflowError ? error.status : 500,
+            {
+              error:
+                error instanceof MemoryWorkflowError
+                  ? error.message
+                  : "Analyse visuelle indisponible.",
             },
           );
         }

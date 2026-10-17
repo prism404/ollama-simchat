@@ -333,7 +333,8 @@ base sauvegarde aussi la galerie. Les anciennes valeurs `avatar_path` restent in
   au chat pour limiter le contexte. Retirer un exemple de la fiche courante n'efface
   pas les versions précédentes. L'ancien format à un seul exemple reste accepté.
 - Après enregistrement de la fiche, ajouter jusqu'à 20 images PNG/JPEG/WebP, de
-  5 Mo maximum chacune, puis choisir l'avatar. Les SVG ne sont pas acceptés.
+  5 Mo maximum chacune, puis choisir l'avatar. Les ajouts et le choix d'avatar sont
+  conservés avec « Enregistrer la fiche ». Les SVG ne sont pas acceptés.
   Les fichiers sont servis par identifiant, sans chemin de disque fourni par le client.
 - Le champ **Apparence physique** est versionné et disponible dans le contexte du chat.
 
@@ -365,3 +366,45 @@ Le modèle reste chargé pendant 30 minutes par défaut au lieu de 10 ; régler
 rechargements mais occupe la mémoire pendant cette durée. Elle n'accélère pas le
 calcul des tokens. GPU/VRAM, taille du modèle et volume du contexte restent les
 principaux facteurs ; aucun gain réel n'a été mesuré sur le PC de l'utilisatrice.
+
+
+## Création guidée : images et personnalité
+
+L'ajout des références se fait **dans le formulaire**, avant même la première
+création du personnage. Ajouter une dizaine de vues, choisir l'avatar et cliquer
+sur **Enregistrer la fiche**. Les images en attente sont signalées ; un ajout non
+encore enregistré peut être retiré sans supprimer les anciennes images.
+Le personnage est enregistré d'abord, puis les fichiers un par un. En cas d'échec
+partiel, l'interface le signale et conserve les ajouts restants pour réessayer,
+sans recréer un deuxième personnage. Quitter la fiche avant sauvegarde perd les
+images qui n'ont pas encore été enregistrées.
+
+Pour l'apparence : cocher entre une et dix références cohérentes, choisir le
+**modèle vision**, puis **Proposer une description**. L'interface détecte les
+capacités déclarées par `/api/show` ; le nom d'un modèle ne suffit pas à établir
+sa compatibilité. Aucun modèle n'est téléchargé automatiquement. Si la liste est
+vide, vérifier les modèles disponibles dans Ollama, installer un modèle vision
+adapté à la machine si nécessaire, puis actualiser la liste.
+
+Les copies destinées à l'analyse sont redimensionnées dans le navigateur à
+1 024 pixels maximum ; les originaux de la galerie sont conservés. L'API envoie
+les références au serveur défini par `OLLAMA_BASE_URL` (local par défaut).
+Le modèle doit décrire uniquement ce qui est visible et signaler les incertitudes
+ou les personnes différentes ; il ne doit pas déduire la personnalité du visage.
+La proposition est modifiable. **Remplacer l'apparence du brouillon** est une
+étape explicite, puis l'enregistrement crée la version habituelle de la fiche.
+L'analyse seule ne modifie ni la fiche, ni les images, ni la base.
+
+Le guide de personnalité est local, sans appel IA. Il propose une tendance par
+situation : inconnus, affection, désaccord et confiance. Deux choix minimum
+produisent une proposition contextualisée à relire, éditer et appliquer aux traits.
+Cela évite de juxtaposer des opposés sans contexte ; ce n'est pas une preuve
+universelle de cohérence d'une biographie libre. Les valeurs et motivations
+restent éditables avec des pistes concrètes. Aucun texte existant n'est remplacé
+sans un clic d'application. Aucune nouvelle migration n'est nécessaire après v3.
+
+Routes de lecture/analyse ajoutées : `GET /api/vision/models`,
+`POST /api/vision/appearance` avec `{ model, images: [dataUrl, ...] }`.
+Maximum dix références et 7 Mo de base64 pour l'analyse ; les formats et tailles
+sont validés. Une erreur Ollama ou un modèle texte donne une erreur explicite,
+sans fabriquer de description de remplacement.
