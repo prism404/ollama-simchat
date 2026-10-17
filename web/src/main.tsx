@@ -28,7 +28,9 @@ type Memory = {
     reason: string;
   }[];
 };
-type Health = { ollama: { connected: boolean; models: string[] } };
+type Health = {
+  ollama: { connected: boolean; models: string[]; model?: string };
+};
 const statusLabel: Record<string, string> = {
   pending: "À valider",
   accepted: "Accepté",
@@ -220,9 +222,9 @@ function MemoryCard({
 
 function App() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [characters, setCharacters] = useState<{ id: number; name: string }[]>(
-    [],
-  );
+  const [characters, setCharacters] = useState<
+    { id: number; name: string; avatarUrl?: string | null }[]
+  >([]);
   const [selectedCharacter, setSelectedCharacter] = useState<number | null>(
     null,
   );
@@ -238,7 +240,21 @@ function App() {
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState("");
   const [loading, setLoading] = useState(true);
+  const [model, setModel] = useState("");
+  const [elapsed, setElapsed] = useState(0);
   const [draft, setDraft] = useState("");
+  useEffect(() => {
+    if (!busy) {
+      setElapsed(0);
+      return;
+    }
+    const started = Date.now();
+    const timer = setInterval(
+      () => setElapsed(Math.floor((Date.now() - started) / 1000)),
+      1000,
+    );
+    return () => clearInterval(timer);
+  }, [!!busy]);
   const end = useRef<HTMLDivElement>(null);
   const current = conversations.find((c) => c.id === selected);
   const characterStories = conversations.filter(
@@ -264,9 +280,9 @@ function App() {
     setNotice("");
   }
   async function refreshCharacters() {
-    const data = await api<{ characters: { id: number; name: string }[] }>(
-      "/api/characters",
-    );
+    const data = await api<{
+      characters: { id: number; name: string; avatarUrl?: string | null }[];
+    }>("/api/characters");
     setCharacters(data.characters);
   }
   const pending = memories.filter((m) => m.status === "pending").length;
@@ -284,7 +300,9 @@ function App() {
       api<{ conversations: Conversation[] }>("/api/conversations", {
         signal: controller.signal,
       }),
-      api<{ characters: { id: number; name: string }[] }>("/api/characters", {
+      api<{
+        characters: { id: number; name: string; avatarUrl?: string | null }[];
+      }>("/api/characters", {
         signal: controller.signal,
       }),
     ])
@@ -369,7 +387,7 @@ function App() {
     try {
       const response = await fetch(
         `/api/conversations/${selected}/messages`,
-        post({ message: text }),
+        post({ message: text, ...(model ? { model } : {}) }),
       );
       if (!response.ok) {
         const data = await response.json();
@@ -494,9 +512,17 @@ function App() {
               disabled={locked}
               onClick={() => chooseCharacter(character.id)}
             >
-              <span className="person-initial" aria-hidden="true">
-                {character.name.slice(0, 1).toLocaleUpperCase("fr")}
-              </span>
+              {character.avatarUrl ? (
+                <img
+                  className="person-avatar"
+                  src={character.avatarUrl}
+                  alt=""
+                />
+              ) : (
+                <span className="person-initial" aria-hidden="true">
+                  {character.name.slice(0, 1).toLocaleUpperCase("fr")}
+                </span>
+              )}
               <span>{character.name}</span>
             </button>
           ))}
@@ -604,7 +630,8 @@ function App() {
           {busy && (
             <div className="working">
               <span className="pulse" />
-              {busy}
+              {busy}{" "}
+              {elapsed > 0 && <span aria-hidden="true">· {elapsed} s</span>}
             </div>
           )}
         </div>
@@ -678,6 +705,29 @@ function App() {
                 void send();
               }}
             >
+              <label className="model-choice">
+                Modèle de dialogue{" "}
+                <select
+                  value={model}
+                  disabled={locked}
+                  onChange={(e) => setModel(e.target.value)}
+                >
+                  <option value="">
+                    Par défaut
+                    {health?.ollama.model ? ` · ${health.ollama.model}` : ""}
+                  </option>
+                  {health?.ollama.models.map((name) => (
+                    <option key={name} value={name}>
+                      {name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <small className="model-help">
+                Pour répondre plus vite, essaie un modèle plus léger déjà
+                installé. Le premier échange peut être plus lent pendant son
+                chargement.
+              </small>
               <label className="sr-only" htmlFor="message">
                 Ton message
               </label>

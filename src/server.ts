@@ -1,4 +1,10 @@
 import {
+  listCharacterImages,
+  saveCharacterImage,
+  setCharacterAvatar,
+  getCharacterImage,
+} from "./db/character-images.ts";
+import {
   listCharacters,
   getCharacter,
   saveCharacter,
@@ -49,6 +55,7 @@ const PORT = Number(process.env.PORT ?? 3000);
 type ChatRequestBody = {
   message?: unknown;
   systemPrompt?: unknown;
+  model?: unknown;
 };
 
 type OllamaStreamChunk = {
@@ -70,6 +77,7 @@ async function streamOllamaResponse(
     "Access-Control-Allow-Origin": "http://localhost:5173",
   });
 
+  response.flushHeaders();
   const reader = stream.getReader();
   const decoder = new TextDecoder();
 
@@ -173,6 +181,11 @@ function readJsonBody(request: IncomingMessage): Promise<ChatRequestBody> {
 
     request.on("data", (chunk: string) => {
       body += chunk;
+      if (body.length > 7_500_000) {
+        reject(new MemoryWorkflowError(413, "Requête trop volumineuse."));
+        request.removeAllListeners("data");
+        request.resume();
+      }
     });
 
     request.on("end", () => {
@@ -256,6 +269,66 @@ export function createAppServer(
                 error instanceof MemoryWorkflowError
                   ? error.message
                   : "Impossible de charger les messages.",
+            },
+          );
+        }
+        return;
+      }
+
+      const imageRoute = url.pathname.match(
+        /^\/api\/character-images\/([^/]+)$/,
+      );
+      const mediaRoute = url.pathname.match(
+        /^\/api\/characters\/([^/]+)\/(images|avatar)$/,
+      );
+      if (imageRoute || mediaRoute) {
+        try {
+          const id = parsePositiveId((imageRoute ?? mediaRoute)![1]);
+          if (imageRoute && request.method === "GET") {
+            const row = getCharacterImage(id);
+            response.writeHead(200, {
+              "Content-Type": String(row.mime_type),
+              "X-Content-Type-Options": "nosniff",
+              "Cache-Control": "private, max-age=3600",
+            });
+            response.end(row.image_data);
+            return;
+          }
+          if (mediaRoute?.[2] === "images" && request.method === "GET")
+            sendJson(response, 200, { images: listCharacterImages(id) });
+          else if (mediaRoute && request.method === "POST") {
+            let body: unknown;
+            try {
+              body = await readJsonBody(request);
+            } catch (error) {
+              if (error instanceof MemoryWorkflowError) throw error;
+              throw new MemoryWorkflowError(400, "Objet JSON invalide.");
+            }
+            if (mediaRoute[2] === "images")
+              sendJson(response, 201, saveCharacterImage(id, body));
+            else {
+              const imageId = (body as { imageId?: unknown }).imageId;
+              if (
+                typeof imageId !== "number" ||
+                !Number.isSafeInteger(imageId) ||
+                imageId <= 0
+              )
+                throw new MemoryWorkflowError(
+                  400,
+                  "Identifiant d’image invalide.",
+                );
+              sendJson(response, 200, setCharacterAvatar(id, imageId));
+            }
+          } else sendJson(response, 405, { error: "Méthode non autorisée." });
+        } catch (error) {
+          sendJson(
+            response,
+            error instanceof MemoryWorkflowError ? error.status : 500,
+            {
+              error:
+                error instanceof MemoryWorkflowError
+                  ? error.message
+                  : "Erreur de galerie. Exécute npm run db:init après la mise à jour.",
             },
           );
         }
@@ -426,6 +499,14 @@ export function createAppServer(
           }
 
           const userMessage = body.message.trim();
+          if (
+            body.model !== undefined &&
+            (typeof body.model !== "string" ||
+              !/^[A-Za-z0-9][A-Za-z0-9._:/-]{0,149}$/.test(body.model))
+          ) {
+            sendJson(response, 400, { error: "Nom de modèle invalide." });
+            return;
+          }
 
           const context = loadConversationContext(conversationId);
 
@@ -436,7 +517,10 @@ export function createAppServer(
             memories,
           );
 
-          const stream = await streamMessages(modelMessages);
+          const stream = await streamMessages(
+            modelMessages,
+            typeof body.model === "string" ? body.model : undefined,
+          );
 
           savePersonaMessage(conversationId, context.persona.id, userMessage);
 

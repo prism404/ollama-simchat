@@ -8,10 +8,10 @@ sont pas attribuées lorsque seul l'ordre des échanges est connu.
 
 | Commande | Dernier résultat observé | Contexte |
 | --- | --- | --- |
-| `npm run test:memory` | 39 réussis dans Codex ; dernière exécution Windows partagée : 31 réussis | Bases temporaires, sans Ollama |
+| `npm run test:memory` | 43 réussis dans Codex ; dernière exécution Windows partagée : 31 réussis | Bases temporaires, sans Ollama |
 | `npm run format:check` | Réussi après correctif des fins de ligne | Codex et Windows |
 | `npm run typecheck` | Réussi | Codex et Windows |
-| `npm run db:check` | Version 2, intégrité `ok`, zéro erreur de clé étrangère, 38 tables/vues | Codex et Windows |
+| `npm run db:check` | Codex : version 3, intégrité `ok`, zéro erreur, 39 tables/vues ; dernière preuve Windows : version 2 | Bases distinctes |
 | `npm run chat:prompt -- 1` | Identifiants `[1]`, souvenir présent dans le system prompt | Base Windows de l'utilisatrice |
 
 Ces résultats décrivent les versions testées, pas une garantie automatique sur les
@@ -203,3 +203,19 @@ personnage, les anciens messages/souvenirs sont masqués immédiatement ; les r�
 de chargement annulées ne peuvent pas repeupler le nouvel espace. Aucune erreur
 JavaScript observée. Le slogan et le pictogramme de marque ont été retirés.
 Aucune migration ni suppression ou réécriture des données existantes.
+
+
+## 17 octobre 2026 — fiche étendue, galerie et réactivité
+
+Quatre nouveaux tests : genre et apparence avec exemples multiples versionnés,
+limite de trois exemples injectés et validation stricte ; images binaires et avatar
+isolé par personnage, faux formats/SVG refusés ; modèle transmis à Ollama simulé et
+en-têtes reçus avant le premier texte ; migration v2 → v3 répétable préservant les
+données et anciens chemins d'avatar. La migration directe v1 → v3 est aussi testée.
+Total : 43 tests réussis.
+
+Parcours Chromium : canevas de création présent, sélection Homme, deux exemples,
+fiche dépassant 1 000 px de large sur une fenêtre de 1 500 px, import de deux PNG,
+choix d'avatar visible dans la navigation, rechargement conservant genre, exemples
+et images, absence de débordement mobile et d'erreur JavaScript. Base temporaire.
+Aucune génération d'image ni mesure de vitesse réelle sur Ollama effectuée.

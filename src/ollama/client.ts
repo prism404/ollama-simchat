@@ -2,6 +2,8 @@ const OLLAMA_BASE_URL = process.env.OLLAMA_BASE_URL ?? "http://127.0.0.1:11434";
 
 const OLLAMA_MODEL = process.env.OLLAMA_MODEL ?? "mistral-small3.2:24b";
 
+const KEEP_ALIVE = process.env.OLLAMA_KEEP_ALIVE ?? "30m";
+
 const GENERATION_OPTIONS = {
   temperature: 0.2,
   top_p: 0.75,
@@ -41,11 +43,13 @@ export async function checkOllama() {
     const data = (await response.json()) as OllamaTagsResponse;
 
     return {
+      model: OLLAMA_MODEL,
       connected: true,
       models: data.models?.map((model) => model.name) ?? [],
     };
   } catch (error) {
     return {
+      model: OLLAMA_MODEL,
       connected: false,
       models: [],
       error: error instanceof Error ? error.message : String(error),
@@ -73,7 +77,7 @@ export async function generateReply({
       model: OLLAMA_MODEL,
       think: false,
       stream: false,
-      keep_alive: "10m",
+      keep_alive: KEEP_ALIVE,
 
       messages: [
         {
@@ -130,7 +134,7 @@ export async function generateReplyStream({
       model: OLLAMA_MODEL,
       think: false,
       stream: true,
-      keep_alive: "10m",
+      keep_alive: KEEP_ALIVE,
 
       messages: [
         {
@@ -165,7 +169,10 @@ export type OllamaMessage = {
   content: string;
 };
 
-export async function generateMessagesStream(messages: OllamaMessage[]) {
+export async function generateMessagesStream(
+  messages: OllamaMessage[],
+  model = OLLAMA_MODEL,
+) {
   const response = await fetch(`${OLLAMA_BASE_URL}/api/chat`, {
     method: "POST",
 
@@ -176,10 +183,10 @@ export async function generateMessagesStream(messages: OllamaMessage[]) {
     signal: AbortSignal.timeout(180_000),
 
     body: JSON.stringify({
-      model: OLLAMA_MODEL,
+      model,
       think: false,
       stream: true,
-      keep_alive: "10m",
+      keep_alive: KEEP_ALIVE,
       messages,
 
       options: GENERATION_OPTIONS,
@@ -219,7 +226,7 @@ export async function generateStructuredReply({
       model: OLLAMA_MODEL,
       think: false,
       stream: false,
-      keep_alive: "10m",
+      keep_alive: KEEP_ALIVE,
       messages,
       format: jsonSchema,
 

@@ -27,6 +27,9 @@ proposé = idée non encore engagée. Les priorités proposées restent à arbit
 | F16 | Web app React/Vite locale : chat, historique, souvenirs, connexion | Compilation, tests API et parcours Chromium avec génération simulée |
 | F17 | Création/édition manuelle de personnage et départ d’une histoire depuis la web app | Fiches versionnées, exemples de style, persona existant ou nouveau, histoire/relations/scène transactionnelles ; P02 livré pour ce périmètre |
 | F18 | Navigation par personnage, histoires regroupées et habillage allégé | Suppression du slogan et du pictogramme ; historique chargé uniquement pour le personnage sélectionné |
+| F19 | Fiche pleine largeur, choix homme/femme, modèle de description et exemples multiples | Données versionnées ; compatibilité avec les fiches existantes |
+| F20 | Avatar et galerie de références locales | Migration v3 non destructive ; import et avatar vérifiés dans Chromium |
+| F21 | Choix du modèle de dialogue et retour de streaming plus précoce | Modèles installés ; délai affiché ; effet réel sur la vitesse à mesurer sur Windows |
 
 ## À vérifier
 
@@ -44,6 +47,7 @@ proposé = idée non encore engagée. Les priorités proposées restent à arbit
 | P03 | Moyenne | Déduplication des reformulations | Détecter les propositions équivalentes sans fusionner des faits distincts |
 | P04 | Moyenne | Sauvegarde et restauration de la base | Procédure documentée et restauration testée sur une copie |
 | P05 | À définir | Statistiques de rappel | Définir quand comptabiliser une utilisation avant d'écrire `recall_count`/`last_recalled_at` |
+| P10 | À définir | Génération d’images fidèle au personnage | Choisir le moteur, ses références d’identité et le passage conversation → scène visuelle ; aucune intégration IA image actuellement |
 | P06 | À définir | Embeddings et recherche hybride | Comparer la qualité à FTS + fallback sur des scénarios reproductibles |
 | P07 | À définir | Synthèses et contradictions | Propositions révisables et historique conservé |
 | P08 | À définir | Évolution du personnage | Respect du socle permanent et validation des changements |

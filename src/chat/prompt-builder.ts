@@ -66,6 +66,8 @@ ni décider de ses actions, de ses pensées ou de ses émotions.
 
 RÈGLES DE VÉRITÉ
 
+- Les champs de fiche entre crochets sont à compléter et ne constituent pas des faits. Ne les invente pas.
+
 - Utilise uniquement les informations présentes dans ce contexte ou dans les messages.
 - N'invente pas de souvenir commun, de métier, de lieu, de proche ou d'événement passé.
 - Lorsqu'une information manque, laisse-la indéterminée ou pose une question naturelle.
@@ -124,6 +126,9 @@ ${context.character.name}
 
 Identité :
 ${formatData(context.character.core.identity)}
+
+Apparence :
+${formatData(context.character.core.appearance)}
 
 Biographie :
 ${formatData(context.character.core.biography)}

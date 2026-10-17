@@ -61,7 +61,18 @@ test("création HTTP UTF-8 : première fiche validée et exemple lié à sa vers
   assert.equal(result.status, 201);
   const detail = await request(`/api/characters/${result.body.id}`);
   assert.equal(detail.body.version, 1);
-  assert.deepEqual(detail.body.form, form);
+  assert.deepEqual(detail.body.form, {
+    ...form,
+    gender: "femme",
+    appearance: "",
+    examples: [
+      {
+        situation: form.exampleSituation,
+        user: form.exampleUser,
+        reply: form.exampleReply,
+      },
+    ],
+  });
   assert.equal(detail.body.versions.length, 1);
   assert.ok(
     (await request("/api/characters")).body.characters.some(
@@ -260,5 +271,208 @@ test("la liste des échanges associe chaque histoire au personnage réellement c
     const context = loadConversationContext(story.conversationId);
     assert.equal(row.characterId, context.character.id);
     assert.equal(row.characterName, context.character.name);
+  }
+});
+
+test("genre, apparence et exemples multiples sont versionnés sans perdre les anciens", () => {
+  const examples = Array.from({ length: 4 }, (_, i) => ({
+    situation: `Situation ${i + 1}`,
+    user: `Message ${i + 1}`,
+    reply: `Réplique ${i + 1}`,
+  }));
+  const c = saveCharacter({
+    ...form,
+    gender: "homme",
+    appearance: "Cheveux noirs, yeux bruns, cicatrice au sourcil.",
+    examples,
+  });
+  const current = getCharacter(c.id);
+  assert.equal(current.form.pronouns, "il");
+  assert.equal(current.form.gender, "homme");
+  assert.deepEqual(current.form.examples, examples);
+  const story = startStory(c.id, {
+    title: "Une rencontre",
+    personaName: "Aki",
+  });
+  const context = loadConversationContext(story.conversationId);
+  assert.equal(context.dialogueExamples.length, 3);
+  assert.deepEqual(
+    context.dialogueExamples.map((e) => e.ideal_response),
+    examples.slice(0, 3).map((e) => e.reply),
+  );
+  assert.ok(
+    buildModelMessages(context, "Bonjour")[0].content.includes(
+      "cicatrice au sourcil",
+    ),
+  );
+  saveCharacter(
+    { ...form, gender: "homme", examples: examples.slice(0, 1) },
+    c.id,
+  );
+  assert.equal(getCharacter(c.id).form.examples?.length, 1);
+  assert.equal(
+    db
+      .prepare(
+        "SELECT COUNT(*) AS n FROM character_dialogue_examples WHERE character_id = ?",
+      )
+      .get(c.id)?.n,
+    5,
+  );
+  assert.throws(() => saveCharacter({ ...form, gender: "autre" }));
+  assert.throws(() =>
+    saveCharacter({
+      ...form,
+      examples: [{ situation: "x", user: "", reply: "x" }],
+    }),
+  );
+  assert.throws(() =>
+    saveCharacter({ ...form, examples: Array(13).fill(examples[0]) }),
+  );
+});
+
+test("galerie locale : images binaires, avatar isolé et formats dangereux refusés", async () => {
+  const a = saveCharacter(form),
+    b = saveCharacter({ ...form, name: "Autre personnage" });
+  const dataUrl =
+    "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9Zl1sAAAAASUVORK5CYII=";
+  const image = await request(`/api/characters/${a.id}/images`, {
+    name: "portrait.png",
+    dataUrl,
+  });
+  assert.equal(image.status, 201);
+  const binary = await fetch(root + image.body.url);
+  assert.equal(binary.headers.get("content-type"), "image/png");
+  assert.equal(
+    Buffer.from(await binary.arrayBuffer()).toString("base64"),
+    dataUrl.split(",")[1],
+  );
+  assert.equal(
+    (
+      await request(`/api/characters/${b.id}/avatar`, {
+        imageId: image.body.id,
+      })
+    ).status,
+    404,
+  );
+  assert.equal(
+    (
+      await request(`/api/characters/${a.id}/avatar`, {
+        imageId: image.body.id,
+      })
+    ).status,
+    200,
+  );
+  const list = await request(`/api/characters/${a.id}/images`);
+  assert.equal(list.body.images[0].isAvatar, 1);
+  assert.equal(
+    (await request(`/api/characters/${b.id}/images`)).body.images.length,
+    0,
+  );
+  for (const value of [
+    "data:image/svg+xml;base64,PHN2Zz4=",
+    "data:image/png;base64,ZmFrZQ==",
+  ])
+    assert.equal(
+      (
+        await request(`/api/characters/${a.id}/images`, {
+          name: "faux",
+          dataUrl: value,
+        })
+      ).status,
+      400,
+    );
+  assert.equal(
+    (
+      await request(`/api/characters/99999/images`, {
+        name: "portrait.png",
+        dataUrl,
+      })
+    ).status,
+    404,
+  );
+  assert.equal((await fetch(root + "/api/character-images/99999")).status, 404);
+});
+
+test("le choix de modèle est transmis et les en-têtes du stream arrivent avant le premier texte", async () => {
+  const c = saveCharacter(form),
+    story = startStory(c.id, { title: "Réactivité", personaName: "Moi" });
+  let receivedModel: string | undefined;
+  let controller!: ReadableStreamDefaultController<Uint8Array<ArrayBuffer>>;
+  const streaming = createAppServer(undefined, async (_messages, model) => {
+    receivedModel = model;
+    return new ReadableStream<Uint8Array<ArrayBuffer>>({
+      start(value) {
+        controller = value;
+      },
+    });
+  });
+  await new Promise<void>((resolve) =>
+    streaming.listen(0, "127.0.0.1", resolve),
+  );
+  try {
+    const url = `http://127.0.0.1:${(streaming.address() as AddressInfo).port}/api/conversations/${story.conversationId}/messages`;
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: "Bonjour", model: "qwen3:4b" }),
+      signal: AbortSignal.timeout(3000),
+    });
+    assert.equal(response.status, 200);
+    assert.equal(receivedModel, "qwen3:4b");
+    controller.enqueue(
+      new TextEncoder().encode(
+        JSON.stringify({ message: { content: "Bonjour !" }, done: true }) +
+          "\n",
+      ),
+    );
+    controller.close();
+    assert.equal(await response.text(), "Bonjour !");
+    const invalid = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: "Bonjour", model: 42 }),
+    });
+    assert.equal(invalid.status, 400);
+  } finally {
+    await new Promise<void>((resolve) => streaming.close(() => resolve()));
+  }
+});
+
+test("migration v2 → v3 répétable : avatar et anciennes données conservés", async () => {
+  const { DatabaseSync } = await import("node:sqlite");
+  const { readFileSync } = await import("node:fs");
+  const { migrateDatabase } = await import("../db/migrations.ts");
+  const legacy = new DatabaseSync(join(directory, "legacy-v2.db"));
+  try {
+    legacy.exec(
+      readFileSync(new URL("../db/schema.sql", import.meta.url), "utf8"),
+    );
+    legacy.exec(
+      readFileSync(
+        new URL("../db/migrations/002-memory-review.sql", import.meta.url),
+        "utf8",
+      ),
+    );
+    legacy.exec(
+      "UPDATE app_meta SET value = '2' WHERE key = 'schema_version'; INSERT INTO characters(id,name,avatar_path) VALUES(1,'Ancien','portrait-local.png');",
+    );
+    const before = legacy.prepare("SELECT * FROM characters").all();
+    legacy.exec("BEGIN");
+    migrateDatabase(legacy);
+    legacy.exec("COMMIT");
+    migrateDatabase(legacy);
+    assert.deepEqual(legacy.prepare("SELECT * FROM characters").all(), before);
+    assert.equal(
+      legacy
+        .prepare("SELECT value FROM app_meta WHERE key = 'schema_version'")
+        .get()?.value,
+      "3",
+    );
+    assert.equal(
+      legacy.prepare("SELECT COUNT(*) AS n FROM character_images").get()?.n,
+      0,
+    );
+  } finally {
+    legacy.close();
   }
 });

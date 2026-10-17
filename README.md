@@ -315,3 +315,53 @@ histoire ouvre sa fiche pour en commencer une. Il n'y a plus de rubrique Convers
 ni de sélecteur global mélangeant les personnages. Les histoires existantes sont
 associées au même personnage principal que celui utilisé pour construire leur prompt.
 Aucune conversation n'est supprimée et aucun rattachement n'est réécrit.
+
+## Fiche étendue, références visuelles et réactivité
+
+Après cette mise à jour, arrêter l'API puis exécuter `npm run db:init` : la migration
+v2 → v3 ajoute `character_images` sans modifier les anciennes lignes. Les images
+sont conservées comme données binaires dans la même base SQLite. Sauvegarder cette
+base sauvegarde aussi la galerie. Les anciennes valeurs `avatar_path` restent intactes.
+
+- La fiche utilise toute la largeur disponible et propose Homme/Femme. Le choix
+  renseigne automatiquement les pronoms ; les anciennes versions restent conservées.
+- Le champ de description des **nouveaux** personnages contient un canevas à compléter :
+  quotidien, expériences formatrices, qualités, défauts, motivations, émotions,
+  relations et habitudes. Les anciennes descriptions ne sont jamais remplacées.
+  Les crochets signalent un fait non renseigné ; le prompt interdit de l'inventer.
+- Jusqu'à 12 exemples sont conservés par version. Les trois premiers sont fournis
+  au chat pour limiter le contexte. Retirer un exemple de la fiche courante n'efface
+  pas les versions précédentes. L'ancien format à un seul exemple reste accepté.
+- Après enregistrement de la fiche, ajouter jusqu'à 20 images PNG/JPEG/WebP, de
+  5 Mo maximum chacune, puis choisir l'avatar. Les SVG ne sont pas acceptés.
+  Les fichiers sont servis par identifiant, sans chemin de disque fourni par le client.
+- Le champ **Apparence physique** est versionné et disponible dans le contexte du chat.
+
+### Préparer une identité visuelle cohérente
+
+Conserver un portrait de face, un trois-quarts et éventuellement une vue de profil
+du même personnage, avec des traits cohérents. Décrire les caractéristiques stables
+(visage, yeux, cheveux, silhouette, signes distinctifs) séparément de la tenue et
+de l'éclairage propres à une scène. La galerie permet de copier une description
+visuelle pour un générateur externe, sans envoyer automatiquement les images.
+
+Un prompt et une graine identiques ne garantissent pas le même visage. Selon le
+moteur choisi, les références d'identité, les modes image-vers-image ou un modèle
+personnalisé tel qu'une LoRA peuvent améliorer la cohérence. La génération d'images
+n'est pas encore intégrée : choisir le moteur local ou le service et son workflow
+sera une étape distincte. Le chat texte n'analyse pas automatiquement la galerie.
+
+### Faire apparaître les réponses plus vite
+
+Le sélecteur **Modèle de dialogue** permet d'essayer les modèles déjà installés
+dans Ollama, sans changer le modèle par défaut ni celui de l'extraction mémoire.
+Un modèle plus léger peut réduire le délai avec un compromis possible sur la
+qualité. Le choix s'applique au prochain message ; il n'installe aucun modèle.
+
+Les en-têtes de streaming sont envoyés dès que le flux Ollama est disponible,
+sans attendre le premier fragment de texte. L'attente s'affiche en secondes.
+Le modèle reste chargé pendant 30 minutes par défaut au lieu de 10 ; régler
+`OLLAMA_KEEP_ALIVE` avant de démarrer l'API si besoin. Cette rétention réduit les
+rechargements mais occupe la mémoire pendant cette durée. Elle n'accélère pas le
+calcul des tokens. GPU/VRAM, taille du modèle et volume du contexte restent les
+principaux facteurs ; aucun gain réel n'a été mesuré sur le PC de l'utilisatrice.

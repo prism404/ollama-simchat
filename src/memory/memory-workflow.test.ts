@@ -99,11 +99,11 @@ after(async () => {
   rmSync(directory, { recursive: true, force: true });
 });
 
-test("migration v1 → v2 répétable sans altérer les anciennes lignes", () => {
+test("migration v1 → v3 répétable sans altérer les anciennes lignes", () => {
   assert.equal(
     db.prepare("SELECT value FROM app_meta WHERE key = 'schema_version'").get()
       ?.value,
-    "2",
+    "3",
   );
   const migrated = db
     .prepare("SELECT * FROM memory_items WHERE id = 50")

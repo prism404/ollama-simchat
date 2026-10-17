@@ -19,7 +19,7 @@ viendront ensuite.
 | --- | --- |
 | Exécution | Node.js ≥ 24, TypeScript exécuté directement |
 | API | Serveur HTTP Node.js, réponses en streaming |
-| Stockage | SQLite intégré à Node.js, schéma version 2 |
+| Stockage | SQLite intégré à Node.js, schéma version 3 |
 | Recherche | FTS5 local : titre, contenu et mots-clés |
 | Interface | React, Vite, TypeScript ; navigateur local |
 | Génération | Ollama ; modèle testé localement : `mistral-small3.2:24b` |

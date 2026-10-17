@@ -18,6 +18,7 @@ type ConversationRow = {
   character_name: string;
   character_label: string;
   identity_json: string;
+  appearance_json: string;
   biography_json: string;
   personality_json: string;
   values_json: string;
@@ -96,6 +97,7 @@ export function loadConversationContext(
         core.id AS core_version_id,
         core.version_number AS core_version_number,
         core.identity_json,
+        core.appearance_json,
         core.biography_json,
         core.personality_json,
         core.values_json,
@@ -184,7 +186,7 @@ export function loadConversationContext(
 
       ORDER BY
         priority DESC,
-        id DESC
+        id ASC
 
       LIMIT 3
     `,
@@ -253,6 +255,7 @@ export function loadConversationContext(
 
         core: {
           identity: parseJson(conversation.identity_json),
+          appearance: parseJson(conversation.appearance_json),
           biography: parseJson(conversation.biography_json),
           personality: parseJson(conversation.personality_json),
           values: parseJson(conversation.values_json),

@@ -6,6 +6,9 @@ import {
 import type { DatabaseSync } from "node:sqlite";
 
 export type CharacterForm = {
+  examples?: { situation: string; user: string; reply: string }[];
+  gender?: string;
+  appearance?: string;
   name: string;
   pronouns: string;
   description: string;
@@ -63,7 +66,9 @@ function parseForm(value: unknown): CharacterForm {
   const body = object(value);
   if (
     Object.keys(body).some(
-      (key) => !(fields as readonly string[]).includes(key),
+      (key) =>
+        !(fields as readonly string[]).includes(key) &&
+        !["gender", "appearance", "examples"].includes(key),
     )
   )
     throw new MemoryWorkflowError(400, "Champ de personnage inconnu.");
@@ -72,13 +77,46 @@ function parseForm(value: unknown): CharacterForm {
       key,
       text(body, key, key === "name", key === "name" ? 100 : 8000),
     ]),
-  ) as CharacterForm;
+  ) as unknown as CharacterForm;
   const examples = [form.exampleSituation, form.exampleUser, form.exampleReply];
   if (examples.some(Boolean) && !examples.every(Boolean))
     throw new MemoryWorkflowError(
       400,
       "Renseigne les trois champs de l’exemple ou laisse-les tous vides.",
     );
+  if (body.gender !== undefined) {
+    if (
+      !["", "homme", "femme"].includes(String(body.gender)) ||
+      typeof body.gender !== "string"
+    )
+      throw new MemoryWorkflowError(400, "Choisis homme ou femme.");
+    form.gender = body.gender;
+    form.pronouns =
+      body.gender === "homme"
+        ? "il"
+        : body.gender === "femme"
+          ? "elle"
+          : form.pronouns;
+  }
+  if (body.appearance !== undefined) form.appearance = text(body, "appearance");
+  if (body.examples !== undefined) {
+    if (!Array.isArray(body.examples) || body.examples.length > 12)
+      throw new MemoryWorkflowError(400, "Maximum 12 exemples.");
+    form.examples = body.examples.map((item) => {
+      const example = object(item);
+      if (
+        Object.keys(example).some(
+          (key) => !["situation", "user", "reply"].includes(key),
+        )
+      )
+        throw new MemoryWorkflowError(400, "Champ d’exemple inconnu.");
+      return {
+        situation: text(example, "situation", true, 2000),
+        user: text(example, "user", true, 2000),
+        reply: text(example, "reply", true, 2000),
+      };
+    });
+  }
   return form;
 }
 function json(value: unknown): Record<string, unknown> {
@@ -129,7 +167,7 @@ export function listCharacters() {
   try {
     return db
       .prepare(
-        `SELECT c.id, c.name, v.version_number AS version, v.identity_json AS identity
+        `SELECT c.id, c.name, c.avatar_path AS avatarUrl, v.version_number AS version, v.identity_json AS identity
     FROM characters c JOIN current_character_core v ON v.character_id = c.id
     WHERE c.status != 'archived' ORDER BY c.id DESC`,
       )
@@ -137,6 +175,11 @@ export function listCharacters() {
       .map((row) => ({
         id: row.id,
         name: row.name,
+        avatarUrl:
+          typeof row.avatarUrl === "string" &&
+          /^\/api\/character-images\/\d+$/.test(row.avatarUrl)
+            ? row.avatarUrl
+            : null,
         version: row.version,
         description: read(json(row.identity).description),
       }));
@@ -151,13 +194,27 @@ export function getCharacter(id: number) {
     const identity = json(core.identity_json),
       personality = json(core.personality_json),
       speech = json(core.speech_style_json);
-    const example = db
+    const storedExamples = db
       .prepare(
         `SELECT * FROM character_dialogue_examples WHERE character_id = ?
-      AND (core_version_id = ? OR (core_version_id IS NULL AND ? = 1)) ORDER BY priority DESC, id DESC LIMIT 1`,
+      AND (core_version_id = ? OR (core_version_id IS NULL AND ? = 1)) ORDER BY priority DESC, id ASC`,
       )
-      .get(id, core.id!, core.version_number!);
+      .all(id, core.id!, core.version_number!);
+    const example = storedExamples[0];
     const form: CharacterForm = {
+      gender:
+        read(identity.gender) ||
+        (/^il$/i.test(read(identity.pronouns))
+          ? "homme"
+          : /^elle$/i.test(read(identity.pronouns))
+            ? "femme"
+            : ""),
+      appearance: read(json(core.appearance_json).description),
+      examples: storedExamples.map((row) => ({
+        situation: read(row.situation_description),
+        user: read(row.user_message),
+        reply: read(row.ideal_response),
+      })),
       name: read(core.name),
       pronouns: read(identity.pronouns),
       description: read(identity.description),
@@ -225,10 +282,17 @@ export function saveCharacter(value: unknown, id?: number) {
       identity_json: JSON.stringify({
         ...json(previous?.identity_json),
         name: form.name,
+        gender: form.gender ?? read(json(previous?.identity_json).gender),
         pronouns: form.pronouns,
         description: form.description,
       }),
-      appearance_json: previous?.appearance_json ?? "{}",
+      appearance_json:
+        form.appearance === undefined
+          ? (previous?.appearance_json ?? "{}")
+          : JSON.stringify({
+              ...json(previous?.appearance_json),
+              description: form.appearance,
+            }),
       biography_json: previous?.biography_json ?? "{}",
       personality_json: JSON.stringify({
         ...json(previous?.personality_json),
@@ -263,18 +327,30 @@ export function saveCharacter(value: unknown, id?: number) {
           ? "Modification manuelle de la fiche"
           : "Création manuelle de la fiche",
       ).lastInsertRowid;
-    if (form.exampleReply)
+    const examples =
+      form.examples ??
+      (form.exampleReply
+        ? [
+            {
+              situation: form.exampleSituation,
+              user: form.exampleUser,
+              reply: form.exampleReply,
+            },
+          ]
+        : []);
+    for (const example of examples) {
       db.prepare(
         `INSERT INTO character_dialogue_examples(character_id, core_version_id, situation_key, situation_description, user_message, ideal_response, response_strategy)
-      VALUES (?, ?, 'manual_example', ?, ?, ?, ?)`,
+        VALUES (?, ?, 'manual_example', ?, ?, ?, ?)`,
       ).run(
         characterId,
         coreId,
-        form.exampleSituation,
-        form.exampleUser,
-        form.exampleReply,
-        "Suivre le ton de cet exemple sans le traiter comme un souvenir.",
+        example.situation,
+        example.user,
+        example.reply,
+        "Respecter le style sans traiter cet exemple fictif comme un souvenir.",
       );
+    }
     db.exec("COMMIT");
     return { id: characterId, version };
   } catch (error) {

@@ -1,6 +1,11 @@
+import { CHARACTER_TEMPLATE } from "./character-template";
+import { CharacterGallery } from "./CharacterGallery";
 import { useEffect, useState } from "react";
 
 type Form = {
+  gender: string;
+  appearance: string;
+  examples: { situation: string; user: string; reply: string }[];
   name: string;
   pronouns: string;
   description: string;
@@ -19,6 +24,7 @@ type Character = {
   id: number;
   name: string;
   description: string;
+  avatarUrl?: string | null;
   version: number;
 };
 type Detail = {
@@ -28,9 +34,12 @@ type Detail = {
   versions: { version: number; name: string; createdAt: string }[];
 };
 const blank: Form = {
+  gender: "",
+  appearance: "",
+  examples: [],
   name: "",
   pronouns: "",
-  description: "",
+  description: CHARACTER_TEMPLATE,
   personality: "",
   values: "",
   motivations: "",
@@ -94,7 +103,7 @@ export function Characters({
   useEffect(() => {
     if (initialCharacterId !== null) void open(initialCharacterId);
   }, [initialCharacterId]);
-  function update(key: keyof Form, value: string) {
+  function update(key: Exclude<keyof Form, "examples">, value: string) {
     setForm((previous) => ({ ...previous, [key]: value }));
   }
   async function open(id: number) {
@@ -159,7 +168,7 @@ export function Characters({
     }
   }
   const field = (
-    key: keyof Form,
+    key: Exclude<keyof Form, "examples">,
     label: string,
     placeholder = "",
     rows = 3,
@@ -209,7 +218,16 @@ export function Characters({
             {characters.map((character) => (
               <article key={character.id} className="memory-card">
                 <span className="badge">Version {character.version}</span>
-                <h2>{character.name}</h2>
+                <h2>
+                  {character.avatarUrl && (
+                    <img
+                      className="person-avatar"
+                      src={character.avatarUrl}
+                      alt=""
+                    />
+                  )}{" "}
+                  {character.name}
+                </h2>
                 <p className="preserve">
                   {character.description ||
                     "Une fiche à découvrir et à préciser."}
@@ -278,19 +296,46 @@ export function Characters({
                   />
                 </label>
                 <label className="character-field">
-                  Pronoms
-                  <input
-                    maxLength={100}
-                    value={form.pronouns}
-                    onChange={(e) => update("pronouns", e.target.value)}
-                    placeholder="elle, il, iel…"
-                  />
+                  Genre
+                  <select
+                    aria-label="Genre"
+                    value={form.gender}
+                    onChange={(e) => {
+                      setForm({
+                        ...form,
+                        gender: e.target.value,
+                        pronouns:
+                          e.target.value === "homme"
+                            ? "il"
+                            : e.target.value === "femme"
+                              ? "elle"
+                              : form.pronouns,
+                      });
+                    }}
+                  >
+                    <option value="">Choisir…</option>
+                    <option value="homme">Homme</option>
+                    <option value="femme">Femme</option>
+                  </select>
                 </label>
               </div>
               {field(
                 "description",
                 "En quelques mots",
                 "Son identité, son quotidien, ce qui le rend unique.",
+                20,
+              )}
+              <p className="muted">
+                Remplace les indications entre crochets par des faits concrets.
+                Laisse indéterminé ce que tu ne souhaites pas définir. Ce modèle
+                guide la création ; il ne garantit pas à lui seul le réalisme du
+                modèle IA.
+              </p>
+              {field(
+                "appearance",
+                "Apparence physique",
+                "Âge apparent adulte, forme du visage, yeux, cheveux, silhouette, signes distinctifs et vêtements habituels. Sépare les traits stables de la tenue de la scène.",
+                5,
               )}
             </fieldset>
             <fieldset disabled={busy}>
@@ -333,29 +378,75 @@ export function Characters({
               )}
             </fieldset>
             <fieldset disabled={busy}>
-              <legend>05 · Un exemple de dialogue (facultatif)</legend>
+              <legend>05 · Exemples de dialogue</legend>
               <p className="muted">
-                Un exemple montre le style attendu. Il ne devient pas un
-                souvenir de l’histoire. Remplis les trois champs ou laisse-les
-                vides.
+                Varie les situations : humour, désaccord, affection, moment
+                ordinaire. Chaque exemple reste fictif. Jusqu’à 12 exemples
+                conservés ; les 3 premiers servent au prompt pour limiter son
+                poids.
               </p>
-              {field(
-                "exampleSituation",
-                "Situation",
-                "La personne arrive en retard.",
-                2,
-              )}
-              {field(
-                "exampleUser",
-                "Message du persona",
-                "Désolée, je n’ai pas vu l’heure passer.",
-                2,
-              )}
-              {field(
-                "exampleReply",
-                "Réponse idéale du personnage",
-                "Une réponse qui exprime exactement sa voix.",
-              )}
+              {form.examples.map((example, index) => (
+                <div className="dialogue-example" key={index}>
+                  <div className="memory-top">
+                    <h3>Exemple {index + 1}</h3>
+                    <button
+                      type="button"
+                      className="text-button"
+                      onClick={() =>
+                        setForm({
+                          ...form,
+                          examples: form.examples.filter((_, i) => i !== index),
+                        })
+                      }
+                    >
+                      Retirer l’exemple {index + 1}
+                    </button>
+                  </div>
+                  {(
+                    [
+                      ["situation", "Situation"],
+                      ["user", "Message du persona"],
+                      ["reply", "Réponse idéale du personnage"],
+                    ] as const
+                  ).map(([key, label]) => (
+                    <label className="character-field" key={key}>
+                      {label} {index + 1}
+                      <textarea
+                        required
+                        maxLength={2000}
+                        rows={3}
+                        value={example[key]}
+                        onChange={(e) =>
+                          setForm({
+                            ...form,
+                            examples: form.examples.map((old, i) =>
+                              i === index
+                                ? { ...old, [key]: e.target.value }
+                                : old,
+                            ),
+                          })
+                        }
+                      />
+                    </label>
+                  ))}
+                </div>
+              ))}
+              <button
+                type="button"
+                className="secondary"
+                disabled={form.examples.length >= 12}
+                onClick={() =>
+                  setForm({
+                    ...form,
+                    examples: [
+                      ...form.examples,
+                      { situation: "", user: "", reply: "" },
+                    ],
+                  })
+                }
+              >
+                + Ajouter un exemple
+              </button>
             </fieldset>
             <div className="actions">
               <button disabled={busy || !form.name.trim()}>
@@ -380,6 +471,17 @@ export function Characters({
               commencer l’histoire.
             </p>
           </form>
+          {detail && (
+            <CharacterGallery
+              id={detail.id}
+              onChanged={onChanged}
+              referencePrompt={`PERSONNAGE : ${form.name}
+GENRE : ${form.gender || "non défini"}
+TRAITS VISUELS STABLES : ${form.appearance || "à préciser"}
+SCÈNE : [décrire le lieu, l’action, la tenue et l’éclairage]
+Conserver l’identité et les traits des images de référence. Adapter la scène sans changer le visage.`}
+            />
+          )}
           {detail && (
             <details>
               <summary>Versions conservées ({detail.versions.length})</summary>
