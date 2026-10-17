@@ -1,6 +1,6 @@
 # Journal des validations
 
-Consolidé le 16 octobre 2026. Les résultats ci-dessous proviennent des exécutions
+Mis à jour le 17 octobre 2026. Les résultats ci-dessous proviennent des exécutions
 Codex et des sorties locales partagées par l'utilisatrice. Les dates précises ne
 sont pas attribuées lorsque seul l'ordre des échanges est connu.
 
@@ -8,7 +8,7 @@ sont pas attribuées lorsque seul l'ordre des échanges est connu.
 
 | Commande | Dernier résultat observé | Contexte |
 | --- | --- | --- |
-| `npm run test:memory` | 29 réussis, zéro échec, aucun ignoré | Codex et Windows |
+| `npm run test:memory` | 31 réussis dans Codex ; dernière exécution Windows partagée : 29 réussis | Bases temporaires, sans Ollama |
 | `npm run format:check` | Réussi après correctif des fins de ligne | Codex et Windows |
 | `npm run typecheck` | Réussi | Codex et Windows |
 | `npm run db:check` | Version 2, intégrité `ok`, zéro erreur de clé étrangère, 38 tables/vues | Codex et Windows |
@@ -96,6 +96,25 @@ sans mentionner le mécanisme mémoire. Le streaming a fonctionné.
 **Portée de la preuve :** la réponse est cohérente avec le souvenir validé, mais la
 préférence figurait aussi dans les messages récents. Cet essai ne démontre pas à
 lui seul un rappel reposant exclusivement sur la mémoire récupérée. Voir V01.
+
+## 17 octobre 2026 — V01 : mémoire hors des messages récents
+
+Deux tests supplémentaires utilisent une base temporaire et une vraie fenêtre de
+12 messages : le message source est suivi de 14 messages neutres et n'est donc
+plus chargé dans les messages récents.
+
+- Sans récupération, le fait ancien est absent du prompt ; avec récupération,
+  le souvenir accepté d'importance 3 revient par fallback.
+- Une proposition en attente reste exclue ; après correction explicite, seul le
+  contenu corrigé est injecté. Source et review conservent le texte original.
+
+Résultat : 31 tests réussis, formatage et types réussis ; `db:check` confirme la
+version 2, l'intégrité correcte et aucune erreur de clé étrangère. Aucun changement
+du code applicatif, du schéma ou des données personnelles.
+
+Cela démontre la construction du contexte sans l'appui des messages récents,
+mais pas encore l'exploitation du souvenir par un vrai Ollama dans ce scénario.
+L'essai local correspondant reste à effectuer ; V01 n'est pas clos entièrement.
 
 ## Rejouer les contrôles
 

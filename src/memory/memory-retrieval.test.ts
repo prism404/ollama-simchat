@@ -359,3 +359,107 @@ test("la section préserve la date et tous les messages récents sans métadonn�
     ],
   );
 });
+
+function prepareOldSourceMemory(reviewStatus: "approved" | "proposed") {
+  const conversationId = Number(
+    db
+      .prepare(
+        "INSERT INTO conversations(story_id, title) VALUES (?, 'Test mémoire hors fenêtre')",
+      )
+      .run(context.story.id).lastInsertRowid,
+  );
+  const source = "Je préfère les endroits paisibles pour nos sorties.";
+  const sourceId = Number(
+    db
+      .prepare(
+        `INSERT INTO messages(
+    conversation_id, sequence_number, sender_type, persona_id, content)
+    VALUES (?, 1, 'persona', ?, ?)`,
+      )
+      .run(conversationId, context.persona.id, source).lastInsertRowid,
+  );
+  for (let sequence = 2; sequence <= 15; sequence++) {
+    db.prepare(
+      `INSERT INTO messages(conversation_id, sequence_number, sender_type, content)
+      VALUES (?, ?, 'narrator', ?)`,
+    ).run(
+      conversationId,
+      sequence,
+      `Étape narrative neutre numéro ${sequence}.`,
+    );
+  }
+  const memoryId = add({
+    content: source,
+    review_status: reviewStatus,
+    source_conversation_id: conversationId,
+  });
+  db.prepare(
+    "INSERT INTO memory_sources(memory_id, message_id, source_excerpt) VALUES (?, ?, ?)",
+  ).run(memoryId, sourceId, source);
+  const current = loadConversationContext(conversationId);
+  assert.equal(current.recentMessages.length, 12);
+  assert.ok(
+    current.recentMessages.every((message) => message.sequence_number > 1),
+  );
+  assert.ok(
+    current.recentMessages.every(
+      (message) => !message.content.includes(source),
+    ),
+  );
+  return { current, memoryId, source };
+}
+
+test("V01 : un souvenir accepté revient par fallback après la sortie de sa source des messages récents", () => {
+  const { current, memoryId, source } = prepareOldSourceMemory("approved");
+  const question = "Où souhaiterais-tu passer la soirée ?";
+  const withoutMemory = JSON.stringify(buildModelMessages(current, question));
+  assert.ok(!withoutMemory.includes(source));
+  const memories = loadRelevantMemories(current, question);
+  assert.deepEqual(
+    memories.map((memory) => memory.id),
+    [memoryId],
+  );
+  const messages = buildModelMessages(current, question, memories);
+  assert.ok(messages[0].content.includes(source));
+  assert.ok(
+    messages.slice(1).every((message) => !message.content.includes(source)),
+  );
+});
+
+test("V01 : hors des messages récents, seule la correction validée est injectée et la source reste intacte", () => {
+  const { current, memoryId, source } = prepareOldSourceMemory("proposed");
+  const question = "Où souhaiterais-tu passer la soirée ?";
+  assert.deepEqual(loadRelevantMemories(current, question), []);
+  const corrected =
+    "Le persona choisit des espaces silencieux pour les sorties à deux.";
+  reviewMemory(memoryId, {
+    decision: "correct",
+    title: "Sorties à deux",
+    content: corrected,
+    reason: "Précision testée",
+  });
+  const memories = loadRelevantMemories(current, question);
+  assert.deepEqual(
+    memories.map((memory) => memory.id),
+    [memoryId],
+  );
+  const prompt = JSON.stringify(
+    buildModelMessages(current, question, memories),
+  );
+  assert.ok(prompt.includes(corrected));
+  assert.ok(!prompt.includes(source));
+  assert.equal(
+    db
+      .prepare("SELECT source_excerpt FROM memory_sources WHERE memory_id = ?")
+      .get(memoryId)?.source_excerpt,
+    source,
+  );
+  assert.equal(
+    db
+      .prepare(
+        "SELECT previous_content FROM memory_reviews WHERE memory_id = ?",
+      )
+      .get(memoryId)?.previous_content,
+    source,
+  );
+});

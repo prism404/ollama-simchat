@@ -1,6 +1,6 @@
 # Backlog — Ollama SimChat
 
-Mis à jour le 16 octobre 2026 à partir du dépôt et des résultats partagés dans le chat.
+Mis à jour le 17 octobre 2026 à partir du dépôt et des résultats partagés dans le chat.
 
 **Statuts :** livré = implémenté ; à vérifier = validation complémentaire ;
 proposé = idée non encore engagée. Les priorités proposées restent à arbitrer.
@@ -29,7 +29,7 @@ proposé = idée non encore engagée. Les priorités proposées restent à arbit
 
 | ID | Priorité proposée | Tâche | Critère de réussite |
 | --- | --- | --- | --- |
-| V01 | Haute | Isoler l'effet de la mémoire hors des messages récents | Sur une base de test séparée, la préférence n'est plus dans les messages récents, mais reste sélectionnée et utilisable |
+| V01 | Haute | Isoler l'effet de la mémoire hors des messages récents | Deux tests automatisés réussis le 17 octobre : rappel hors fenêtre et correction ; essai réel Ollama hors fenêtre encore à faire |
 | V02 | Haute | Diagnostiquer les caractères `�` dans les sources | Distinguer saisie, encodage HTTP, stockage et affichage ; nouvel échange accentué intact, sans réécrire les anciens messages |
 | V03 | Moyenne | Tester correction et refus manuellement sur Windows | Propositions de test dédiées : historique avant/après correct et souvenir refusé exclu du prompt |
 | V04 | Moyenne | Vérifier le style réel des réponses | Réponse naturelle respectant les consignes de longueur et d'actions ; l'essai actuel contient plusieurs actions |
