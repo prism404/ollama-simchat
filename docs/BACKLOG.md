@@ -26,6 +26,7 @@ proposé = idée non encore engagée. Les priorités proposées restent à arbit
 | F15 | Fiche projet, backlog et journal de tests | Documents du dossier `docs/` |
 | F16 | Web app React/Vite locale : chat, historique, souvenirs, connexion | Compilation, tests API et parcours Chromium avec génération simulée |
 | F17 | Création/édition manuelle de personnage et départ d’une histoire depuis la web app | Fiches versionnées, exemples de style, persona existant ou nouveau, histoire/relations/scène transactionnelles ; P02 livré pour ce périmètre |
+| F18 | Navigation par personnage, histoires regroupées et habillage allégé | Suppression du slogan et du pictogramme ; historique chargé uniquement pour le personnage sélectionné |
 
 ## À vérifier
 

@@ -60,7 +60,11 @@ async function request<T>(path: string, body?: unknown): Promise<T> {
 
 export function Characters({
   onStarted,
+  initialCharacterId = null,
+  onChanged,
 }: {
+  initialCharacterId?: number | null;
+  onChanged?: () => Promise<void>;
   onStarted: (id: number) => Promise<void>;
 }) {
   const [characters, setCharacters] = useState<Character[]>([]);
@@ -87,6 +91,9 @@ export function Characters({
   useEffect(() => {
     void load().catch((e) => setError(e.message));
   }, []);
+  useEffect(() => {
+    if (initialCharacterId !== null) void open(initialCharacterId);
+  }, [initialCharacterId]);
   function update(key: keyof Form, value: string) {
     setForm((previous) => ({ ...previous, [key]: value }));
   }
@@ -143,6 +150,7 @@ export function Characters({
       setDetail(saved);
       setForm(saved.form);
       await load();
+      await onChanged?.();
       setNotice(`Fiche enregistrée · version ${saved.version}.`);
     } catch (e) {
       setError((e as Error).message);

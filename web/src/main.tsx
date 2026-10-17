@@ -7,6 +7,8 @@ type Conversation = {
   id: number;
   title: string;
   storyTitle: string;
+  characterId: number | null;
+  characterName: string | null;
   status: string;
 };
 type Message = { id: number; senderType: string; content: string };
@@ -218,8 +220,16 @@ function MemoryCard({
 
 function App() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [characters, setCharacters] = useState<{ id: number; name: string }[]>(
+    [],
+  );
+  const [selectedCharacter, setSelectedCharacter] = useState<number | null>(
+    null,
+  );
   const [selected, setSelected] = useState<number | null>(null);
-  const [tab, setTab] = useState<"chat" | "memories" | "characters">("chat");
+  const [tab, setTab] = useState<"chat" | "memories" | "characters">(
+    "characters",
+  );
   const [messages, setMessages] = useState<Message[]>([]);
   const [memories, setMemories] = useState<Memory[]>([]);
   const [filter, setFilter] = useState("pending");
@@ -231,6 +241,34 @@ function App() {
   const [draft, setDraft] = useState("");
   const end = useRef<HTMLDivElement>(null);
   const current = conversations.find((c) => c.id === selected);
+  const characterStories = conversations.filter(
+    (c) => c.characterId === selectedCharacter,
+  );
+  const characterName =
+    characters.find((c) => c.id === selectedCharacter)?.name ??
+    current?.characterName;
+  function chooseCharacter(id: number) {
+    const stories = conversations.filter((c) => c.characterId === id);
+    setSelectedCharacter(id);
+    const next =
+      stories.find((c) => c.status === "active")?.id ?? stories[0]?.id ?? null;
+    if (next !== selected) {
+      setMessages([]);
+      setMemories([]);
+      setDraft("");
+      setLoading(next !== null);
+    }
+    setSelected(next);
+    setTab(stories.length ? "chat" : "characters");
+    setError("");
+    setNotice("");
+  }
+  async function refreshCharacters() {
+    const data = await api<{ characters: { id: number; name: string }[] }>(
+      "/api/characters",
+    );
+    setCharacters(data.characters);
+  }
   const pending = memories.filter((m) => m.status === "pending").length;
   const locked = !!busy || loading;
   async function checkHealth() {
@@ -242,16 +280,18 @@ function App() {
   }
   useEffect(() => {
     const controller = new AbortController();
-    void api<{ conversations: Conversation[] }>("/api/conversations", {
-      signal: controller.signal,
-    })
-      .then((data) => {
+    void Promise.all([
+      api<{ conversations: Conversation[] }>("/api/conversations", {
+        signal: controller.signal,
+      }),
+      api<{ characters: { id: number; name: string }[] }>("/api/characters", {
+        signal: controller.signal,
+      }),
+    ])
+      .then(([data, people]) => {
+        if (controller.signal.aborted) return;
         setConversations(data.conversations);
-        setSelected(
-          data.conversations.find((c) => c.status === "active")?.id ??
-            data.conversations[0]?.id ??
-            null,
-        );
+        setCharacters(people.characters);
       })
       .catch((e) => {
         if (!controller.signal.aborted)
@@ -266,7 +306,13 @@ function App() {
     return () => controller.abort();
   }, []);
   useEffect(() => {
-    if (selected === null) return;
+    if (selected === null) {
+      setMessages([]);
+      setMemories([]);
+      setDraft("");
+      setLoading(false);
+      return;
+    }
     const controller = new AbortController();
     setLoading(true);
     setError("");
@@ -283,6 +329,7 @@ function App() {
       }),
     ])
       .then(([history, stored]) => {
+        if (controller.signal.aborted) return;
         setMessages(history.messages);
         setMemories(stored.memories);
       })
@@ -415,58 +462,95 @@ function App() {
   return (
     <div className="app-shell">
       <aside className="sidebar">
-        <a className="brand" href="/" aria-label="SimChat, accueil">
-          <span className="brand-mark">s</span>simchat
-          <span className="brand-dot">.</span>
+        <a className="brand wordmark" href="/" aria-label="SimChat, accueil">
+          simchat
         </a>
-        <div className="sidebar-copy">
-          Un fil de conversation.
-          <br />
-          Des souvenirs qui restent.
-        </div>
-        <label className="conversation-picker">
-          CONVERSATION
-          <select
-            aria-label="Choisir une conversation"
-            value={selected ?? ""}
-            disabled={locked || !conversations.length}
-            onChange={(e) => setSelected(Number(e.target.value))}
-          >
-            {!conversations.length && (
-              <option value="">Aucune conversation</option>
-            )}
-            {conversations.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.title || `Conversation ${c.id}`}
-                {c.status !== "active" ? " · archivée" : ""}
-              </option>
-            ))}
-          </select>
-        </label>
-        <nav aria-label="Navigation principale">
+        <nav aria-label="Personnages" className="character-navigation">
           <button
-            className={tab === "characters" ? "nav-item active" : "nav-item"}
+            className={
+              tab === "characters" && selectedCharacter === null
+                ? "nav-item active"
+                : "nav-item"
+            }
             disabled={!!busy}
-            onClick={() => setTab("characters")}
+            onClick={() => {
+              setSelectedCharacter(null);
+              setTab("characters");
+              setError("");
+              setNotice("");
+            }}
           >
-            <span>◇</span> Personnages
+            Tous les personnages
           </button>
-          <button
-            className={tab === "chat" ? "nav-item active" : "nav-item"}
-            onClick={() => setTab("chat")}
-          >
-            <span>
-              <ArrowIcon />
-            </span>{" "}
-            Conversation
-          </button>
-          <button
-            className={tab === "memories" ? "nav-item active" : "nav-item"}
-            onClick={() => setTab("memories")}
-          >
-            <span>◇</span> Souvenirs <span className="count">{pending}</span>
-          </button>
+          <div className="sidebar-heading">MES PERSONNAGES</div>
+          {characters.map((character) => (
+            <button
+              key={character.id}
+              className={
+                selectedCharacter === character.id
+                  ? "person-link selected"
+                  : "person-link"
+              }
+              disabled={locked}
+              onClick={() => chooseCharacter(character.id)}
+            >
+              <span className="person-initial" aria-hidden="true">
+                {character.name.slice(0, 1).toLocaleUpperCase("fr")}
+              </span>
+              <span>{character.name}</span>
+            </button>
+          ))}
+          {!characters.length && !loading && (
+            <p className="sidebar-empty">
+              Crée ton premier personnage pour commencer.
+            </p>
+          )}
         </nav>
+        {selectedCharacter !== null && characterStories.length > 0 && (
+          <div className="character-tools">
+            {characterStories.length > 1 && (
+              <label className="conversation-picker">
+                HISTOIRE
+                <select
+                  aria-label="Histoire de ce personnage"
+                  value={selected ?? ""}
+                  disabled={locked}
+                  onChange={(e) => {
+                    setMessages([]);
+                    setMemories([]);
+                    setDraft("");
+                    setLoading(true);
+                    setSelected(Number(e.target.value));
+                    setTab("chat");
+                  }}
+                >
+                  {characterStories.map((story) => (
+                    <option key={story.id} value={story.id}>
+                      {story.storyTitle}
+                      {story.status !== "active" ? " · archivée" : ""}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+            <button
+              className="text-button"
+              disabled={locked}
+              onClick={() => setTab(tab === "memories" ? "chat" : "memories")}
+            >
+              {tab === "memories"
+                ? "← Revenir aux échanges"
+                : `Souvenirs à valider (${pending})`}
+            </button>
+            <button
+              className="text-button"
+              disabled={locked}
+              onClick={() => setTab("characters")}
+            >
+              Fiche du personnage / Nouvelle histoire
+            </button>
+          </div>
+        )}
         <div className="connection">
           <div>
             <span
@@ -497,21 +581,18 @@ function App() {
         <header>
           <div>
             <span className="eyebrow">
-              {current?.storyTitle || "TON ESPACE"}
+              {tab === "characters"
+                ? "PERSONNAGES"
+                : current?.storyTitle || "TON ESPACE"}
             </span>
             <h1>
               {tab === "chat"
-                ? current?.title || "Conversation"
+                ? characterName || "Choisis un personnage"
                 : tab === "characters"
                   ? "Les personnages"
                   : "Les souvenirs"}
             </h1>
           </div>
-          <span className="header-label">
-            {tab === "chat"
-              ? "Un échange à la fois"
-              : "Tu choisis ce qui reste"}
-          </span>
         </header>
         <div className="feedback" aria-live="polite">
           {error && (
@@ -529,12 +610,20 @@ function App() {
         </div>
         {tab === "characters" ? (
           <Characters
+            key={selectedCharacter ?? "directory"}
+            initialCharacterId={selectedCharacter}
+            onChanged={refreshCharacters}
             onStarted={async (id) => {
               const data = await api<{ conversations: Conversation[] }>(
                 "/api/conversations",
               );
               setConversations(data.conversations);
               setSelected(id);
+              setSelectedCharacter(
+                data.conversations.find((c) => c.id === id)?.characterId ??
+                  null,
+              );
+              await refreshCharacters();
               setTab("chat");
             }}
           />
@@ -549,7 +638,7 @@ function App() {
             <p>
               {error
                 ? "Relance l’API puis actualise cette page."
-                : "Aucune conversation pour le moment. Ouvre Personnages pour créer une fiche puis commencer une histoire."}
+                : "Aucune conversation pour le moment. Choisis un personnage à gauche pour retrouver ses échanges ou créer une histoire."}
             </p>
           </section>
         ) : tab === "chat" ? (

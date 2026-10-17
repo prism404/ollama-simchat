@@ -8,7 +8,7 @@ sont pas attribuées lorsque seul l'ordre des échanges est connu.
 
 | Commande | Dernier résultat observé | Contexte |
 | --- | --- | --- |
-| `npm run test:memory` | 38 réussis dans Codex ; dernière exécution Windows partagée : 31 réussis | Bases temporaires, sans Ollama |
+| `npm run test:memory` | 39 réussis dans Codex ; dernière exécution Windows partagée : 31 réussis | Bases temporaires, sans Ollama |
 | `npm run format:check` | Réussi après correctif des fins de ligne | Codex et Windows |
 | `npm run typecheck` | Réussi | Codex et Windows |
 | `npm run db:check` | Version 2, intégrité `ok`, zéro erreur de clé étrangère, 38 tables/vues | Codex et Windows |
@@ -187,3 +187,19 @@ modifications, création d'un nouveau persona, relation et scène, ouverture du 
 envoi et réponse simulée, rechargement et persistance de la fiche. Vue mobile sans
 débordement et aucune erreur JavaScript observée. La fidélité de la personnalité
 avec le vrai Ollama reste une vérification locale à effectuer.
+
+
+## 17 octobre 2026 — navigation centrée sur les personnages
+
+Un test HTTP supplémentaire vérifie que chaque échange est associé au personnage
+chargé dans le contexte, avec plusieurs histoires pour un même personnage et un
+second personnage distinct. Total : 39 tests.
+
+Parcours Chromium sur base temporaire : sélection d'un personnage, choix entre
+ses deux histoires, absence des histoires d'un autre personnage, streaming simulé,
+souvenirs et retour aux échanges, fiche d'un personnage sans histoire, renommage
+répercuté dans la navigation, affichage mobile sans débordement. Au changement de
+personnage, les anciens messages/souvenirs sont masqués immédiatement ; les réponses
+de chargement annulées ne peuvent pas repeupler le nouvel espace. Aucune erreur
+JavaScript observée. Le slogan et le pictogramme de marque ont été retirés.
+Aucune migration ni suppression ou réécriture des données existantes.

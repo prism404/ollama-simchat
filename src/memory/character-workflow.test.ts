@@ -242,3 +242,23 @@ test("échec de scène : toute l'histoire, y compris le nouveau persona, est ann
   assert.deepEqual(counts(), before);
   assert.deepEqual(db.prepare("PRAGMA foreign_key_check").all(), []);
 });
+
+test("la liste des échanges associe chaque histoire au personnage réellement chargé dans le contexte", async () => {
+  const first = saveCharacter({ ...form, name: "Personnage A" });
+  const second = saveCharacter({ ...form, name: "Personnage B" });
+  const stories = [
+    startStory(first.id, { title: "A1", personaName: "Moi A" }),
+    startStory(first.id, { title: "A2", personaName: "Moi A2" }),
+    startStory(second.id, { title: "B1", personaName: "Moi B" }),
+  ];
+  const result = await request("/api/conversations");
+  assert.equal(result.status, 200);
+  for (const story of stories) {
+    const row = result.body.conversations.find(
+      (c: { id: number }) => c.id === story.conversationId,
+    );
+    const context = loadConversationContext(story.conversationId);
+    assert.equal(row.characterId, context.character.id);
+    assert.equal(row.characterName, context.character.name);
+  }
+});

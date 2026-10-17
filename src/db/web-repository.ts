@@ -6,8 +6,18 @@ export function listConversations() {
   try {
     return db
       .prepare(
-        `SELECT c.id, c.title, c.status, s.title AS storyTitle
-      FROM conversations c JOIN stories s ON s.id = c.story_id
+        `WITH owned AS (
+        SELECT c.*, (SELECT member.character_id FROM story_cast AS member
+          JOIN current_character_core core ON core.character_id = member.character_id
+          WHERE member.story_id = c.story_id
+          ORDER BY CASE WHEN member.role = 'main' THEN 0 ELSE 1 END,
+            member.character_id ASC LIMIT 1) AS characterId
+        FROM conversations c
+      )
+      SELECT c.id, c.title, c.status, c.characterId, character.name AS characterName,
+        s.title AS storyTitle FROM owned c
+      JOIN stories s ON s.id = c.story_id
+      LEFT JOIN characters character ON character.id = c.characterId
       ORDER BY c.started_at DESC, c.id DESC`,
       )
       .all();

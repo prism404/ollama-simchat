@@ -304,3 +304,14 @@ Essai manuel conseillé : créer un personnage accentué, renseigner un exemple,
 enregistrer, modifier un trait et vérifier les deux versions. Créer ensuite une
 histoire avec un nouveau persona, envoyer un message et recharger la page.
 `npm run test:memory` couvre aussi les transactions et le prompt de ce parcours.
+
+### Navigation par personnage
+
+L'accueil présente les personnages ; la barre latérale donne directement accès à
+chacun. Cliquer sur un personnage ouvre ses échanges. S'il a plusieurs histoires,
+un choix **Histoire** apparaît dans son espace, limité à ses propres histoires.
+Les souvenirs et la fiche se consultent depuis ce même espace. Un personnage sans
+histoire ouvre sa fiche pour en commencer une. Il n'y a plus de rubrique Conversation
+ni de sélecteur global mélangeant les personnages. Les histoires existantes sont
+associées au même personnage principal que celui utilisé pour construire leur prompt.
+Aucune conversation n'est supprimée et aucun rattachement n'est réécrit.
