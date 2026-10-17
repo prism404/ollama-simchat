@@ -253,9 +253,8 @@ L'interface transmet `/api` à l'API locale sur le port 3000. Si l'API utilise u
 autre port, définir `SIMCHAT_API_URL` avant `npm run web`. Le serveur web reste
 lié à l'ordinateur local et n'est pas un déploiement public.
 
-Aucune donnée de démonstration n'est créée automatiquement. La première version
-utilise les conversations présentes dans la base ; création/édition de personnages
-et d'histoires et création de conversations depuis l'interface viendront plus tard.
+Aucune donnée de démonstration n'est créée automatiquement. Les conversations existantes restent accessibles ; l’onglet Personnages permet
+désormais de créer une fiche et une nouvelle histoire avec sa conversation.
 Une conversation non active reste consultable mais l'envoi est désactivé.
 
 L'extraction mémoire peut prendre plusieurs minutes ; attendre le résultat sans
@@ -271,3 +270,37 @@ Pour un essai manuel : envoyer un message accentué, attendre la réponse en str
 ouvrir Souvenirs, chercher des propositions, consulter une source puis valider
 une proposition. Recharger la page pour vérifier la persistance. Utiliser une base
 séparée pour les scénarios expérimentaux.
+
+## Créer un personnage et commencer une histoire
+
+Dans l'onglet **Personnages**, choisir **Créer un personnage**. Seul le nom est
+obligatoire : pronoms, description, traits, valeurs, motivations, ton, humour,
+longueur des réponses et limites peuvent être précisés progressivement.
+L'exemple de dialogue est facultatif ; si utilisé, remplir ses trois champs.
+Le sarcasme léger est proposé comme valeur initiale, modifiable librement.
+
+**Enregistrer la fiche** valide une version rédigée manuellement. Une modification
+ajoute une nouvelle ligne dans `character_core_versions` sans réécrire l'ancienne.
+Les champs avancés non exposés par ce formulaire sont conservés. La version
+courante s'applique aux futures réponses de ce personnage dans toutes ses histoires ;
+les anciens messages ne sont pas réécrits. Les anciens exemples restent stockés,
+mais seuls ceux de la version courante sont chargés (compatibilité avec les
+exemples sans version de la fiche initiale).
+
+Après enregistrement, **Commencer une histoire** propose un persona existant ou
+la création d'un persona par son nom. Renseigner le titre, la relation de départ,
+le contexte partagé, le lieu et la première scène. L'histoire, ses participants,
+sa relation, sa scène et sa conversation sont créés dans une seule transaction.
+L'interface ouvre ensuite le chat. Chaque nouvelle histoire reste indépendante.
+La création des fiches et histoires ne nécessite pas Ollama ; les réponses du chat,
+si. Aucun seed ni migration supplémentaire n'est nécessaire.
+
+Routes ajoutées : `GET/POST /api/characters`, `GET/POST /api/characters/:id`,
+`GET /api/personas`, `POST /api/characters/:id/stories`. Les entrées invalides
+renvoient 400 et les ressources absentes 404. L'enregistrement d'une modification
+via POST crée une version ; il ne remplace jamais silencieusement la précédente.
+
+Essai manuel conseillé : créer un personnage accentué, renseigner un exemple,
+enregistrer, modifier un trait et vérifier les deux versions. Créer ensuite une
+histoire avec un nouveau persona, envoyer un message et recharger la page.
+`npm run test:memory` couvre aussi les transactions et le prompt de ce parcours.

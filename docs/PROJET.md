@@ -57,8 +57,9 @@ L'extraction n'est pas automatique après chaque message. Le script
 Les tables préparent déjà plusieurs usages futurs, mais leur présence ne signifie
 pas que les workflows correspondants sont implémentés : embeddings, synthèses,
 contradictions et évolution du personnage restent à définir ou à développer.
-L’interface web initiale existe ; la création/édition des personnages et histoires
-depuis celle-ci reste à développer. Voir le [backlog](BACKLOG.md).
+L’interface permet désormais de créer et modifier les personnages, puis de
+commencer une histoire avec un persona existant ou nouveau. L’édition d’une
+histoire déjà commencée reste hors de ce premier parcours. Voir le [backlog](BACKLOG.md).
 
 ## Règles de travail
 

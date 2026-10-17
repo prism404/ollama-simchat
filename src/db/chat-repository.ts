@@ -29,6 +29,8 @@ type ConversationRow = {
   behavior_rules_json: string;
   immutable_facts_json: string;
 
+  core_version_id: number;
+  core_version_number: number;
   relationship_id: number | null;
   relationship_label: string | null;
   relationship_context: string | null;
@@ -91,6 +93,8 @@ export function loadConversationContext(
         character.name AS character_name,
         character.short_label AS character_label,
 
+        core.id AS core_version_id,
+        core.version_number AS core_version_number,
         core.identity_json,
         core.biography_json,
         core.personality_json,
@@ -176,6 +180,7 @@ export function loadConversationContext(
       FROM character_dialogue_examples
 
       WHERE character_id = ?
+        AND (core_version_id = ? OR (core_version_id IS NULL AND ? = 1))
 
       ORDER BY
         priority DESC,
@@ -184,7 +189,11 @@ export function loadConversationContext(
       LIMIT 3
     `,
       )
-      .all(conversation.character_id) as DialogueExampleRow[];
+      .all(
+        conversation.character_id,
+        conversation.core_version_id,
+        conversation.core_version_number,
+      ) as DialogueExampleRow[];
 
     const recentMessages = db
       .prepare(

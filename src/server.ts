@@ -1,4 +1,11 @@
 import {
+  listCharacters,
+  getCharacter,
+  saveCharacter,
+  listPersonas,
+  startStory,
+} from "./db/character-repository.ts";
+import {
   listConversations,
   listConversationMessages,
 } from "./db/web-repository.ts";
@@ -249,6 +256,65 @@ export function createAppServer(
                 error instanceof MemoryWorkflowError
                   ? error.message
                   : "Impossible de charger les messages.",
+            },
+          );
+        }
+        return;
+      }
+
+      const characterRoute = url.pathname.match(
+        /^\/api\/characters\/([^/]+)(\/stories)?$/,
+      );
+      if (
+        url.pathname === "/api/characters" ||
+        url.pathname === "/api/personas" ||
+        characterRoute
+      ) {
+        try {
+          const id = characterRoute
+            ? parsePositiveId(characterRoute[1])
+            : undefined;
+          if (url.pathname === "/api/personas" && request.method === "GET")
+            sendJson(response, 200, { personas: listPersonas() });
+          else if (
+            url.pathname === "/api/characters" &&
+            request.method === "GET"
+          )
+            sendJson(response, 200, { characters: listCharacters() });
+          else if (
+            characterRoute &&
+            !characterRoute[2] &&
+            request.method === "GET"
+          )
+            sendJson(response, 200, getCharacter(id!));
+          else if (
+            request.method === "POST" &&
+            url.pathname !== "/api/personas"
+          ) {
+            let body: unknown;
+            try {
+              body = await readJsonBody(request);
+            } catch {
+              throw new MemoryWorkflowError(400, "Objet JSON invalide.");
+            }
+            sendJson(
+              response,
+              characterRoute && !characterRoute[2] ? 200 : 201,
+              characterRoute?.[2]
+                ? startStory(id!, body)
+                : saveCharacter(body, id),
+            );
+          } else sendJson(response, 405, { error: "Méthode non autorisée." });
+        } catch (error) {
+          if (!(error instanceof MemoryWorkflowError)) console.error(error);
+          sendJson(
+            response,
+            error instanceof MemoryWorkflowError ? error.status : 500,
+            {
+              error:
+                error instanceof MemoryWorkflowError
+                  ? error.message
+                  : "Impossible d’enregistrer la fiche ou l’histoire.",
             },
           );
         }

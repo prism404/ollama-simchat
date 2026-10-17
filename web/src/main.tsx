@@ -1,3 +1,4 @@
+import { Characters } from "./Characters";
 import { StrictMode, useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import "./style.css";
@@ -218,7 +219,7 @@ function MemoryCard({
 function App() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selected, setSelected] = useState<number | null>(null);
-  const [tab, setTab] = useState<"chat" | "memories">("chat");
+  const [tab, setTab] = useState<"chat" | "memories" | "characters">("chat");
   const [messages, setMessages] = useState<Message[]>([]);
   const [memories, setMemories] = useState<Memory[]>([]);
   const [filter, setFilter] = useState("pending");
@@ -444,6 +445,13 @@ function App() {
         </label>
         <nav aria-label="Navigation principale">
           <button
+            className={tab === "characters" ? "nav-item active" : "nav-item"}
+            disabled={!!busy}
+            onClick={() => setTab("characters")}
+          >
+            <span>◇</span> Personnages
+          </button>
+          <button
             className={tab === "chat" ? "nav-item active" : "nav-item"}
             onClick={() => setTab("chat")}
           >
@@ -494,7 +502,9 @@ function App() {
             <h1>
               {tab === "chat"
                 ? current?.title || "Conversation"
-                : "Les souvenirs"}
+                : tab === "characters"
+                  ? "Les personnages"
+                  : "Les souvenirs"}
             </h1>
           </div>
           <span className="header-label">
@@ -517,7 +527,18 @@ function App() {
             </div>
           )}
         </div>
-        {!selected ? (
+        {tab === "characters" ? (
+          <Characters
+            onStarted={async (id) => {
+              const data = await api<{ conversations: Conversation[] }>(
+                "/api/conversations",
+              );
+              setConversations(data.conversations);
+              setSelected(id);
+              setTab("chat");
+            }}
+          />
+        ) : !selected ? (
           <section className="empty">
             <span className="empty-symbol">◇</span>
             <h2>
@@ -528,7 +549,7 @@ function App() {
             <p>
               {error
                 ? "Relance l’API puis actualise cette page."
-                : "Aucune conversation pour le moment. Utilise une histoire existante dans ta base ; la création depuis l’interface arrivera ensuite."}
+                : "Aucune conversation pour le moment. Ouvre Personnages pour créer une fiche puis commencer une histoire."}
             </p>
           </section>
         ) : tab === "chat" ? (

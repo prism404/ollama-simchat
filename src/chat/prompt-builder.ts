@@ -83,6 +83,10 @@ FIDÉLITÉ AUX DÉTAILS
 
 STYLE DE RÉPONSE
 
+Respecte en priorité le style de langage du personnage ci-dessous, y compris
+son humour et la longueur de ses réponses. Les valeurs suivantes sont des défauts
+si sa fiche ne donne aucune consigne plus précise.
+
 - Réponds en 1 à 3 phrases.
 - Utilise au maximum une indication d'action courte par réponse.
 - Ne découpe pas chaque phrase avec une nouvelle action.
@@ -174,6 +178,11 @@ Atmosphère :
 ${context.scene.atmosphere || "Non renseignée"}
 
 ${formatMemorySection(memories)}
+
+EXEMPLES DE DIALOGUE — STYLE UNIQUEMENT
+
+Ces exemples sont fictifs et ne sont pas des événements ou souvenirs établis.
+${formatDialogueExamples(context)}
 
 CONSIGNES DE STYLE
 

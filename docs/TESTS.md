@@ -8,7 +8,7 @@ sont pas attribuées lorsque seul l'ordre des échanges est connu.
 
 | Commande | Dernier résultat observé | Contexte |
 | --- | --- | --- |
-| `npm run test:memory` | 32 réussis dans Codex ; dernière exécution Windows partagée : 31 réussis | Bases temporaires, sans Ollama |
+| `npm run test:memory` | 38 réussis dans Codex ; dernière exécution Windows partagée : 31 réussis | Bases temporaires, sans Ollama |
 | `npm run format:check` | Réussi après correctif des fins de ligne | Codex et Windows |
 | `npm run typecheck` | Réussi | Codex et Windows |
 | `npm run db:check` | Version 2, intégrité `ok`, zéro erreur de clé étrangère, 38 tables/vues | Codex et Windows |
@@ -167,3 +167,23 @@ Ces essais ne remplacent pas la vérification locale avec le vrai Ollama.
 Aucune migration de schéma, aucun seed dans la base personnelle, aucune réécriture
 des messages existants. L'encodage des anciennes sources affichées avec `�`
 reste à diagnostiquer séparément (V02).
+
+
+## 17 octobre 2026 — fiches personnage et nouvelles histoires
+
+Six tests supplémentaires, sans Ollama : création HTTP avec accents, restitution
+de la fiche et de l'exemple ; versions originales inchangées ; sélection du seul
+exemple courant dans le prompt ; persona existant et relations/scènes séparées ;
+validation des entrées et existence ; rollback d'une modification de fiche ou de
+la création d'histoire après erreur. Total : 38 tests réussis.
+
+Les réponses idéales sont maintenant fournies au modèle comme exemples de style
+explicitement fictifs. Les modifications du socle s'appliquent aux prochaines
+réponses sans réécrire les messages déjà enregistrés. Aucun changement de schéma.
+
+Parcours Chromium sur base temporaire : création d’Élise avec exemple de dialogue,
+modification en version 2, départ d'histoire bloqué avant enregistrement des
+modifications, création d'un nouveau persona, relation et scène, ouverture du chat,
+envoi et réponse simulée, rechargement et persistance de la fiche. Vue mobile sans
+débordement et aucune erreur JavaScript observée. La fidélité de la personnalité
+avec le vrai Ollama reste une vérification locale à effectuer.
