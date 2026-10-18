@@ -8,7 +8,7 @@ sont pas attribuées lorsque seul l'ordre des échanges est connu.
 
 | Commande | Dernier résultat observé | Contexte |
 | --- | --- | --- |
-| `npm run test:memory` | 57 réussis dans Codex ; dernière exécution Windows partagée : 31 réussis | Bases temporaires, sans Ollama |
+| `npm run test:memory` | 59 réussis dans Codex ; dernière exécution Windows partagée : 31 réussis | Bases temporaires, sans Ollama |
 | `npm run format:check` | Réussi après correctif des fins de ligne | Codex et Windows |
 | `npm run typecheck` | Réussi | Codex et Windows |
 | `npm run db:check` | Codex : version 3, intégrité `ok`, zéro erreur, 39 tables/vues ; dernière preuve Windows : version 2 | Bases distinctes |
@@ -282,3 +282,10 @@ Parcours local : arrêter les serveurs, récupérer main et lancer `npm run db:i
 - Formatage, TypeScript et compilation web réussis.
 - Chromium : icône seule dans la sidebar, réouverture depuis la bande repliée ; bouton Créer un personnage dans l’en-tête uniquement sur la liste ; archives ouvertes, fermées et rouvertes ; ordre des actions Évolution / Modifier / Supprimer ; retour du formulaire à la liste et écran 390 px sans débordement, aucune erreur JavaScript.
 - Aucun changement de schéma ou de données.
+
+## Persona détaillé — 19 octobre 2026
+
+- 59 tests automatisés réussis. Nouveaux tests : fiche détaillée relue sans perte, anciennes préférences conservées, anciens clients sans champ profile compatibles, contenu transmis au prompt du bon persona avec règles d’autonomie et de connaissance ; champs invalides refusés et rollback complet sur erreur SQL (y compris le choix par défaut).
+- Formatage, TypeScript, compilation web et intégrité SQLite réussis. Schéma inchangé v4, aucune migration. La fiche structurée utilise preferences_json.profile sans remplacer les autres préférences.
+- Vérification locale : Personas → choisir une fiche existante, retrouver son ancienne description dans Présentation générale. Compléter passé et présent séparément, utiliser le guide de personnalité, enregistrer, puis retrouver les champs après rechargement. Commencer une histoire avec ce persona et vérifier `chat:prompt` : fiche détaillée présente, champs vides absents. Les mises à jour concernent toutes les histoires utilisant ce même persona.
+- Chromium sur base temporaire : passé/présent et apparence remplis, personnalité construite avec le guide, enregistrement puis rechargement sans perte ; annulation du changement de fiche avec brouillon, largeur mobile 390 px sans débordement et aucune erreur JavaScript. Aucun appel Ollama réel dans ce parcours.

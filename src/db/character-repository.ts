@@ -1,3 +1,4 @@
+import { readPersonaProfile } from "../persona/persona-profile.ts";
 import { openDatabase } from "./connection.ts";
 import {
   MemoryWorkflowError,
@@ -396,9 +397,17 @@ export function listPersonas() {
   try {
     return db
       .prepare(
-        "SELECT id, name, pronouns, description, is_default AS isDefault FROM personas ORDER BY is_default DESC, id ASC",
+        "SELECT id, name, pronouns, description, preferences_json, is_default AS isDefault FROM personas ORDER BY is_default DESC, id ASC",
       )
-      .all();
+      .all()
+      .map((row) => ({
+        id: row.id,
+        name: row.name,
+        pronouns: row.pronouns,
+        description: row.description,
+        isDefault: row.isDefault,
+        profile: readPersonaProfile(json(row.preferences_json).profile),
+      }));
   } finally {
     db.close();
   }

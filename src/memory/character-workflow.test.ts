@@ -1011,3 +1011,179 @@ test("personas : création, modification, défaut unique, contexte et erreurs sa
     400,
   );
 });
+
+test("persona détaillé : aller-retour, contexte ciblé et anciennes préférences préservées", async () => {
+  const { emptyPersonaProfile } = await import("../persona/persona-profile.ts");
+  const profile = {
+    ...emptyPersonaProfile(),
+    gender: "femme",
+    appearance: "Cheveux courts, yeux verts.",
+    past: "Ancienne pianiste de concert.",
+    present: "Elle reprend ses études.",
+    personality: "Réservée en groupe, chaleureuse en confiance.",
+    boundaries: "Demander avant de toucher ses affaires.",
+    privateInfo: "Elle prépare une audition en secret.",
+  };
+  const created = await request("/api/personas", {
+    name: "Persona nuancé",
+    pronouns: "elle",
+    description: "Description originale conservée.",
+    isDefault: false,
+    profile,
+  });
+  assert.equal(created.status, 200);
+  const personaId = created.body.id;
+  db.prepare(
+    "UPDATE personas SET preferences_json=json_set(preferences_json,'$.existingPreference','thé vert') WHERE id=?",
+  ).run(personaId);
+  const reloaded = (await request("/api/personas")).body.personas.find(
+    (p: { id: number }) => p.id === personaId,
+  );
+  assert.deepEqual(reloaded.profile, profile);
+  assert.equal(reloaded.description, "Description originale conservée.");
+  const character = saveCharacter(form);
+  const story = startStory(character.id, { title: "Persona riche", personaId });
+  const context = loadConversationContext(story.conversationId);
+  assert.equal(context.persona.pronouns, "elle");
+  assert.deepEqual(context.persona.preferences, {
+    existingPreference: "thé vert",
+  });
+  const prompt = buildModelMessages(context, "Bonjour")[0].content;
+  for (const value of [
+    profile.appearance,
+    profile.past,
+    profile.present,
+    profile.personality,
+    profile.boundaries,
+    profile.privateInfo,
+  ])
+    assert.ok(prompt.includes(value));
+  assert.ok(prompt.includes("Ses traits et objectifs sont des tendances"));
+  assert.ok(
+    prompt.includes(
+      "Les informations privées ne sont pas connues du personnage",
+    ),
+  );
+  const other = startStory(character.id, {
+    title: "Un autre persona",
+    personaName: "Autre",
+  });
+  assert.ok(
+    !buildModelMessages(
+      loadConversationContext(other.conversationId),
+      "Bonjour",
+    )[0].content.includes(profile.privateInfo),
+  );
+  // An older client omitting profile must not erase it.
+  assert.equal(
+    (
+      await request(`/api/personas/${personaId}`, {
+        name: "Nom ajusté",
+        pronouns: "elle",
+        description: "Description ajustée.",
+        isDefault: false,
+      })
+    ).status,
+    200,
+  );
+  const stored = JSON.parse(
+    String(
+      db
+        .prepare("SELECT preferences_json FROM personas WHERE id=?")
+        .get(personaId)?.preferences_json,
+    ),
+  );
+  assert.deepEqual(stored.profile, profile);
+  assert.equal(stored.existingPreference, "thé vert");
+  const adjusted = { ...profile, present: "Elle travaille à la bibliothèque." };
+  await request(`/api/personas/${personaId}`, {
+    name: "Nom ajusté",
+    pronouns: "elle",
+    description: "Description ajustée.",
+    isDefault: false,
+    profile: adjusted,
+  });
+  assert.ok(
+    loadConversationContext(story.conversationId).persona.profile.includes(
+      adjusted.present,
+    ),
+  );
+  assert.equal(
+    JSON.parse(
+      String(
+        db
+          .prepare("SELECT preferences_json FROM personas WHERE id=?")
+          .get(personaId)?.preferences_json,
+      ),
+    ).existingPreference,
+    "thé vert",
+  );
+});
+
+test("persona détaillé : champs invalides et échec SQL annulent toutes les écritures", async () => {
+  const created = await request("/api/personas", {
+    name: "Persona protégé",
+    pronouns: "",
+    description: "Texte conservé",
+    isDefault: false,
+  });
+  const before = db
+    .prepare("SELECT * FROM personas WHERE id=?")
+    .get(created.body.id);
+  for (const profile of [
+    null,
+    [],
+    { invented: "non" },
+    { past: 12 },
+    { gender: "invalide" },
+    { past: "x".repeat(8001) },
+    { past: "a".repeat(8000), present: "b".repeat(8000), habits: "c" },
+  ]) {
+    assert.equal(
+      (
+        await request(`/api/personas/${created.body.id}`, {
+          name: "À refuser",
+          pronouns: "",
+          description: "Modification à annuler",
+          isDefault: true,
+          profile,
+        })
+      ).status,
+      400,
+    );
+    assert.deepEqual(
+      db.prepare("SELECT * FROM personas WHERE id=?").get(created.body.id),
+      before,
+    );
+  }
+  const defaults = db
+    .prepare("SELECT id,is_default FROM personas ORDER BY id")
+    .all();
+  db.exec(
+    `CREATE TRIGGER fail_persona_profile BEFORE UPDATE OF preferences_json ON personas BEGIN SELECT RAISE(ABORT,'test profile failure'); END;`,
+  );
+  try {
+    assert.equal(
+      (
+        await request(`/api/personas/${created.body.id}`, {
+          name: "À annuler",
+          pronouns: "elle",
+          description: "Modification à annuler",
+          isDefault: true,
+          profile: { past: "Passé connu" },
+        })
+      ).status,
+      500,
+    );
+    assert.deepEqual(
+      db.prepare("SELECT * FROM personas WHERE id=?").get(created.body.id),
+      before,
+    );
+    assert.deepEqual(
+      db.prepare("SELECT id,is_default FROM personas ORDER BY id").all(),
+      defaults,
+    );
+  } finally {
+    db.exec("DROP TRIGGER fail_persona_profile");
+  }
+});

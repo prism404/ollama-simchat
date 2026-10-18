@@ -1,3 +1,7 @@
+import {
+  readPersonaProfile,
+  personaProfileText,
+} from "../persona/persona-profile.ts";
 import { openDatabase } from "./connection.ts";
 
 type ConversationRow = {
@@ -12,6 +16,7 @@ type ConversationRow = {
   persona_id: number;
   persona_name: string;
   persona_description: string;
+  persona_pronouns: string | null;
   preferences_json: string;
 
   character_id: number;
@@ -88,6 +93,7 @@ export function loadConversationContext(
         persona.id AS persona_id,
         persona.name AS persona_name,
         persona.description AS persona_description,
+        persona.pronouns AS persona_pronouns,
         persona.preferences_json,
 
         character.id AS character_id,
@@ -239,6 +245,14 @@ export function loadConversationContext(
         conversation.character_id,
         conversation.relationship_id,
       );
+    const personaPreferences = parseJson(conversation.preferences_json);
+    const preferenceRecord =
+      personaPreferences &&
+      typeof personaPreferences === "object" &&
+      !Array.isArray(personaPreferences)
+        ? (personaPreferences as Record<string, unknown>)
+        : {};
+    const { profile: personaProfile, ...otherPreferences } = preferenceRecord;
     return {
       evolution: evolution
         ? {
@@ -266,8 +280,10 @@ export function loadConversationContext(
       persona: {
         id: conversation.persona_id,
         name: conversation.persona_name,
+        pronouns: conversation.persona_pronouns ?? "",
         description: conversation.persona_description,
-        preferences: parseJson(conversation.preferences_json),
+        preferences: otherPreferences,
+        profile: personaProfileText(readPersonaProfile(personaProfile)),
       },
 
       character: {

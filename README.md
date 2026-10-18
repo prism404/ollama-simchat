@@ -426,3 +426,7 @@ Après cette mise à jour, arrêter les serveurs puis exécuter `npm run db:init
 « Mes personas » permet de créer et modifier la personne incarnée, et de choisir un persona par défaut. Lors d’une nouvelle histoire, sélectionner ce persona ou en créer un avec sa description. Les modifications de persona concernent les prochains échanges de toutes ses histoires.
 
 « Supprimer » archive le personnage après saisie exacte de son nom ; ses données sont conservées et « Voir les personnages archivés » permet de le restaurer.
+
+### Persona détaillé
+
+Dans **Personas**, chaque fiche comporte identité et apparence, passé établi, situation présente, personnalité guidée, valeurs, motivations, fragilités, relations, limites, voix, habitudes et informations publiques/privées. Seul le nom est obligatoire. L’ancienne description reste dans Présentation générale. Les champs sont transmis au modèle pour le persona associé à l’histoire ; les modifications concernent les prochains échanges de toutes ses histoires. Le personnage doit respecter les décisions de la joueuse et ne pas traiter les secrets du dossier comme automatiquement connus. Aucun appel IA supplémentaire ni migration n’est nécessaire.

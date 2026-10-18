@@ -1101,3 +1101,9 @@ main {
     margin-left: auto;
   }
 }
+.field-guidance {
+  display: block;
+  font-weight: 400;
+  line-height: 1.6;
+  margin-bottom: 6px;
+}

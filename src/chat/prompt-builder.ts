@@ -112,9 +112,20 @@ PERSONA HUMAIN
 
 Nom :
 ${context.persona.name}
+${context.persona.pronouns ? `Pronoms : ${context.persona.pronouns}` : ""}
 
 Description :
 ${context.persona.description || "Non renseignée"}
+
+${
+  context.persona.profile
+    ? `FICHE DÉTAILLÉE DU PERSONA
+
+${context.persona.profile}
+`
+    : ""
+}
+Ces repères servent à adapter ton écoute, tes propositions et ton comportement. Ils ne t’autorisent pas à écrire les répliques, pensées, émotions, gestes ou décisions du persona. Ses traits et objectifs sont des tendances : sa réaction actuelle appartient à la joueuse. N’invente rien pour compléter les champs absents. Le passé établi ne devient pas un passé partagé sans preuve dans cette histoire. Les informations privées ne sont pas connues du personnage tant qu’elles n’ont pas été révélées ou rendues observables dans les échanges. Ne transporte pas les liens d’une autre histoire dans celle-ci.
 
 Préférences :
 ${formatData(context.persona.preferences)}

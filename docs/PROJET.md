@@ -89,3 +89,9 @@ La galerie permet de choisir et cadrer l’avatar (position et zoom) avec aperç
 Mes personas regroupe les fiches des personnages incarnés par la joueuse. Un persona contient un nom, des pronoms facultatifs et une description libre ; il peut être choisi par défaut pour les nouvelles histoires. Modifier un persona met à jour les prochains contextes des histoires qui le référencent, sans réécrire les messages. Le modèle respecte les décisions de la joueuse.
 
 La suppression d’un personnage est un archivage : confirmation par son nom exact, retrait des listes actives, restauration possible. Aucune fiche, image, histoire ou mémoire n’est supprimée physiquement.
+
+## Fiche détaillée du persona
+
+La fiche incarnée dispose de six sections guidées : présentation, passé et présent, personnalité et vie intérieure, relations et limites, voix et détails vivants, informations connues ou privées. Un guide local aide à construire une personnalité contextualisée. Les champs restent facultatifs, seul le nom est requis ; les indications de rédaction ne sont pas enregistrées comme des faits.
+
+La description existante reste conservée dans Présentation générale. Le profil est enregistré dans les préférences SQLite existantes et accompagne le contexte du persona choisi pour l’histoire. Le prompt demande au personnage d’adapter son comportement sans écrire les actes ou pensées du persona ni considérer automatiquement ses informations privées comme connues. Il s’agit d’instructions au modèle, pas d’un mécanisme d’autorisation ou d’une garantie de fidélité de ses réponses. La fiche détaillée est limitée à 16 000 caractères, en plus de la présentation, pour contenir la taille du contexte.

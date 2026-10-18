@@ -1,3 +1,4 @@
+import { validatePersonaProfile } from "../persona/persona-profile.ts";
 import { openDatabase } from "./connection.ts";
 import {
   MemoryWorkflowError,
@@ -43,7 +44,21 @@ export function archiveCharacter(id: number, value: unknown, restore = false) {
 }
 export function savePersona(value: unknown, id?: number) {
   if (id !== undefined) parsePositiveId(String(id));
-  const input = body(value, ["name", "pronouns", "description", "isDefault"]);
+  const input = body(value, [
+    "name",
+    "pronouns",
+    "description",
+    "isDefault",
+    "profile",
+  ]);
+  let profile;
+  if (input.profile !== undefined) {
+    try {
+      profile = validatePersonaProfile(input.profile);
+    } catch (error) {
+      throw new MemoryWorkflowError(400, (error as Error).message);
+    }
+  }
   for (const [key, max] of [
     ["name", 100],
     ["pronouns", 100],
@@ -86,6 +101,23 @@ export function savePersona(value: unknown, id?: number) {
       db.prepare(
         "UPDATE personas SET name=?,pronouns=?,description=?,is_default=?,updated_at=CURRENT_TIMESTAMP WHERE id=?",
       ).run(...args, id);
+    if (profile !== undefined) {
+      const row = db
+        .prepare("SELECT preferences_json FROM personas WHERE id=?")
+        .get(id);
+      let preferences: Record<string, unknown> = {};
+      try {
+        const data = JSON.parse(String(row?.preferences_json));
+        if (data && typeof data === "object" && !Array.isArray(data))
+          preferences = data;
+      } catch {
+        /* Anciennes préférences absentes ou invalides. */
+      }
+      db.prepare("UPDATE personas SET preferences_json=? WHERE id=?").run(
+        JSON.stringify({ ...preferences, profile }),
+        id,
+      );
+    }
     db.exec("COMMIT");
     return { id };
   } catch (error) {
