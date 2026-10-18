@@ -7,6 +7,8 @@ proposé = idée non encore engagée. Les priorités proposées restent à arbit
 
 ## Livré
 
+- F26 : liste de chats avec avatar agrandi et dernier message effectif ; évolution par histoire, activité, souvenirs validés et bilans manuels versionnés. Dernier bilan validé utilisé dans le contexte, sans modifier le socle initial.
+
 | ID | Tâche | Preuve / référence |
 | --- | --- | --- |
 | F01 | Serveur TypeScript et API de conversation en streaming | Socle `702a5da` ; réponse réelle observée avec Ollama |
@@ -54,7 +56,7 @@ proposé = idée non encore engagée. Les priorités proposées restent à arbit
 | P10 | À définir | Génération d’images fidèle au personnage | Choisir le moteur, ses références d’identité et le passage conversation → scène visuelle ; aucune intégration IA image actuellement |
 | P06 | À définir | Embeddings et recherche hybride | Comparer la qualité à FTS + fallback sur des scénarios reproductibles |
 | P07 | À définir | Synthèses et contradictions | Propositions révisables et historique conservé |
-| P08 | À définir | Évolution du personnage | Respect du socle permanent et validation des changements |
+| P08 | À définir | Propositions automatiques d’évolution | V1 manuelle livrée ; définir les preuves, contradictions et validation avant toute synthèse IA |
 | P09 | À définir | Souvenirs persona transversaux | Réévaluer explicitement les règles d'isolation avant tout assouplissement |
 
 ## Prochaine étape suggérée

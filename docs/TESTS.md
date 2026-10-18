@@ -1,6 +1,6 @@
 # Journal des validations
 
-Mis à jour le 17 octobre 2026. Les résultats ci-dessous proviennent des exécutions
+Mis à jour le 18 octobre 2026. Les résultats ci-dessous proviennent des exécutions
 Codex et des sorties locales partagées par l'utilisatrice. Les dates précises ne
 sont pas attribuées lorsque seul l'ordre des échanges est connu.
 
@@ -8,7 +8,7 @@ sont pas attribuées lorsque seul l'ordre des échanges est connu.
 
 | Commande | Dernier résultat observé | Contexte |
 | --- | --- | --- |
-| `npm run test:memory` | 49 réussis dans Codex ; dernière exécution Windows partagée : 31 réussis | Bases temporaires, sans Ollama |
+| `npm run test:memory` | 53 réussis dans Codex ; dernière exécution Windows partagée : 31 réussis | Bases temporaires, sans Ollama |
 | `npm run format:check` | Réussi après correctif des fins de ligne | Codex et Windows |
 | `npm run typecheck` | Réussi | Codex et Windows |
 | `npm run db:check` | Codex : version 3, intégrité `ok`, zéro erreur, 39 tables/vues ; dernière preuve Windows : version 2 | Bases distinctes |
@@ -247,3 +247,11 @@ les détails inconnus. Nouveau test : réponse interrompue par la limite du mod�
 refusée comme proposition complète. Total : 49 tests réussis ; formatage, types,
 compilation et intégrité SQLite réussis. Aucun essai visuel réel supplémentaire
 ni réécriture des descriptions enregistrées.
+
+## Évolution et liste de chats — 18 octobre 2026
+
+- Quatre tests supplémentaires : dernier message effectif du bon personnage, correction et absence de message ; bilans successifs et isolation du prompt ; activité et souvenirs validés ; validation HTTP et rollback transactionnel.
+- `test:memory` : 53/53 ; `format:check`, `typecheck`, `web:build` et `db:check` réussis. Schéma inchangé v3, intégrité ok, zéro erreur de clé étrangère.
+- Chromium sur base temporaire : aperçu du dernier message, ouverture du suivi, création de deux bilans, affichage de l’historique ; largeur mobile 390 px sans débordement et aucune erreur JavaScript. Aucun appel Ollama dans ce parcours.
+
+Vérification locale : ouvrir Tous les personnages → Évolution, sélectionner une histoire, puis Décrire son évolution. Enregistrer deux bilans et consulter les versions précédentes. Changer d’histoire : son état reste séparé. Les souvenirs acceptés ou corrigés apparaissent après actualisation ; les propositions en attente sont exclues. La fiche de départ reste conservée.

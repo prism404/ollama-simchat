@@ -1,3 +1,7 @@
+import {
+  getCharacterEvolution,
+  saveCharacterEvolution,
+} from "./db/character-evolution.ts";
 import { listVisionModels, describeAppearance } from "./ollama/vision.ts";
 import {
   listCharacterImages,
@@ -365,6 +369,51 @@ export function createAppServer(
                 error instanceof MemoryWorkflowError
                   ? error.message
                   : "Erreur de galerie. Exécute npm run db:init après la mise à jour.",
+            },
+          );
+        }
+        return;
+      }
+
+      const evolutionRoute = url.pathname.match(
+        /^\/api\/characters\/([^/]+)\/evolution$/,
+      );
+      if (evolutionRoute) {
+        try {
+          const id = parsePositiveId(evolutionRoute[1]);
+          if (request.method === "GET") {
+            if (
+              url.searchParams.getAll("storyId").length > 1 ||
+              [...url.searchParams.keys()].some((key) => key !== "storyId")
+            )
+              throw new MemoryWorkflowError(400, "Filtre d’histoire invalide.");
+            const storyId = url.searchParams.get("storyId");
+            sendJson(
+              response,
+              200,
+              getCharacterEvolution(
+                id,
+                storyId === null ? undefined : parsePositiveId(storyId),
+              ),
+            );
+          } else if (request.method === "POST") {
+            let body: unknown;
+            try {
+              body = await readJsonBody(request);
+            } catch {
+              throw new MemoryWorkflowError(400, "Objet JSON invalide.");
+            }
+            sendJson(response, 201, saveCharacterEvolution(id, body));
+          } else sendJson(response, 405, { error: "Méthode non autorisée." });
+        } catch (error) {
+          sendJson(
+            response,
+            error instanceof MemoryWorkflowError ? error.status : 500,
+            {
+              error:
+                error instanceof MemoryWorkflowError
+                  ? error.message
+                  : "Impossible de charger l’évolution.",
             },
           );
         }

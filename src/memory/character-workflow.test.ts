@@ -476,3 +476,226 @@ test("migration v2 → v3 répétable : avatar et anciennes données conservés"
     legacy.close();
   }
 });
+
+test("liste de chats : dernier message effectif du bon personnage, correction et absence de message", async () => {
+  const a = saveCharacter({ ...form, name: "Chat A" }),
+    b = saveCharacter({ ...form, name: "Chat B" });
+  const older = startStory(a.id, {
+    title: "Ancienne histoire active",
+    personaName: "A",
+  });
+  const newer = startStory(a.id, {
+    title: "Nouvelle histoire vide",
+    personaName: "A2",
+  });
+  const other = startStory(b.id, { title: "B", personaName: "B" });
+  const original = db
+    .prepare(
+      `INSERT INTO messages(conversation_id,sequence_number,sender_type,content,sent_at) VALUES(?,1,'narrator','Ancien texte','2026-01-01 10:00:00')`,
+    )
+    .run(older.conversationId).lastInsertRowid;
+  db.prepare(
+    `INSERT INTO messages(conversation_id,sequence_number,sender_type,content,sent_at,supersedes_message_id) VALUES(?,2,'narrator','Dernier texte corrigé','2026-01-02 10:00:00',?)`,
+  ).run(older.conversationId, original);
+  db.prepare(
+    `INSERT INTO messages(conversation_id,sequence_number,sender_type,content,sent_at) VALUES(?,1,'narrator','Texte de B','2030-01-01 10:00:00')`,
+  ).run(other.conversationId);
+  const empty = saveCharacter({ ...form, name: "Sans histoire" });
+  const list = (await request("/api/characters")).body.characters;
+  const card = list.find((c: { id: number }) => c.id === a.id);
+  assert.equal(card.lastMessage, "Dernier texte corrigé");
+  assert.equal(card.lastConversationId, older.conversationId);
+  assert.notEqual(card.lastConversationId, newer.conversationId);
+  assert.equal(
+    list.find((c: { id: number }) => c.id === b.id).lastMessage,
+    "Texte de B",
+  );
+  assert.equal(
+    list.find((c: { id: number }) => c.id === empty.id).lastMessage,
+    null,
+  );
+  assert.equal(
+    list.find((c: { id: number }) => c.id === empty.id).lastConversationId,
+    null,
+  );
+});
+
+test("évolution : bilans successifs conservés et dernier état validé injecté seulement dans son histoire", async () => {
+  const c = saveCharacter(form),
+    a = startStory(c.id, { title: "Évolution A", personaName: "Moi A" }),
+    b = startStory(c.id, { title: "Évolution B", personaName: "Moi B" });
+  const coreBefore = db
+    .prepare("SELECT * FROM character_core_versions WHERE character_id = ?")
+    .all(c.id);
+  const summary = {
+    storyId: a.storyId,
+    summary: "Il exprime plus clairement ses intentions.",
+    mood: "Apaisé",
+    goals: "Être fiable\nÉcouter",
+    relationship: "Confiance en construction",
+    lessons: "Respecter le rythme de chacun",
+  };
+  assert.equal(
+    (await request(`/api/characters/${c.id}/evolution`, summary)).status,
+    201,
+  );
+  const stateBefore = db
+    .prepare(
+      "SELECT * FROM character_state_versions WHERE character_id = ? AND story_id = ?",
+    )
+    .get(c.id, a.storyId);
+  assert.equal(
+    (
+      await request(`/api/characters/${c.id}/evolution`, {
+        ...summary,
+        summary: "Il reconnaît une erreur sans se défendre.",
+      })
+    ).body.version,
+    2,
+  );
+  const history = await request(
+    `/api/characters/${c.id}/evolution?storyId=${a.storyId}`,
+  );
+  assert.equal(history.status, 200);
+  assert.equal(history.body.states.length, 2);
+  assert.equal(history.body.current.version, 2);
+  assert.deepEqual(
+    db
+      .prepare(
+        "SELECT * FROM character_state_versions WHERE character_id = ? AND story_id = ? AND version_number = 1",
+      )
+      .get(c.id, a.storyId),
+    stateBefore,
+  );
+  assert.deepEqual(
+    db
+      .prepare("SELECT * FROM character_core_versions WHERE character_id = ?")
+      .all(c.id),
+    coreBefore,
+  );
+  const prompt = buildModelMessages(
+    loadConversationContext(a.conversationId),
+    "Bonjour",
+  )[0].content;
+  assert.ok(prompt.includes("Il reconnaît une erreur sans se défendre."));
+  assert.ok(!prompt.includes(summary.summary));
+  assert.equal(loadConversationContext(b.conversationId).evolution, null);
+  db.prepare(
+    `INSERT INTO character_state_versions(story_id,character_id,relationship_id,version_number,development_summary,change_reason,review_status)
+    VALUES(?,?,?,3,'Proposition NON VALIDÉE','Test','proposed')`,
+  ).run(a.storyId, c.id, a.relationshipId);
+  assert.ok(
+    !buildModelMessages(
+      loadConversationContext(a.conversationId),
+      "Bonjour",
+    )[0].content.includes("Proposition NON VALIDÉE"),
+  );
+});
+
+test("suivi dynamique : activité et nouveaux souvenirs validés ; isolation des scopes et états non approuvés", async () => {
+  const c = saveCharacter(form),
+    a = startStory(c.id, { title: "Suivi A", personaName: "A" }),
+    b = startStory(c.id, { title: "Suivi B", personaName: "B" });
+  const context = loadConversationContext(a.conversationId);
+  const add = (status: string, life: string, storyId = a.storyId) =>
+    Number(
+      db
+        .prepare(
+          `INSERT INTO memory_items(story_id,character_id,persona_id,relationship_id,memory_type,scope,title,content,review_status,lifecycle_status)
+    VALUES(?,?,?,?, 'relationship','relationship','Évolution retenue','Un fait établi',?,?)`,
+        )
+        .run(storyId, c.id, context.persona.id, a.relationshipId, status, life)
+        .lastInsertRowid,
+    );
+  const valid = add("approved", "active");
+  add("proposed", "active");
+  add("rejected", "active");
+  add("superseded", "active");
+  add("approved", "expired");
+  add("approved", "active", b.storyId);
+  const first = (
+    await request(`/api/characters/${c.id}/evolution?storyId=${a.storyId}`)
+  ).body;
+  assert.deepEqual(
+    first.memories.map((m: { id: number }) => m.id),
+    [valid],
+  );
+  assert.equal(first.activity.messageCount, 0);
+  db.prepare(
+    "INSERT INTO messages(conversation_id,sequence_number,sender_type,content) VALUES(?,1,'narrator','Un événement')",
+  ).run(a.conversationId);
+  const corrected = add("corrected", "active");
+  const next = (
+    await request(`/api/characters/${c.id}/evolution?storyId=${a.storyId}`)
+  ).body;
+  assert.equal(next.activity.messageCount, 1);
+  assert.equal(next.memories.length, 2);
+  assert.ok(next.memories.some((m: { id: number }) => m.id === corrected));
+  assert.equal(
+    (await request(`/api/characters/${c.id}/evolution?storyId=${b.storyId}`))
+      .body.memories.length,
+    0,
+  );
+});
+
+test("évolution : entrées invalides, histoires étrangères et rollback du bilan", async () => {
+  const a = saveCharacter(form),
+    b = saveCharacter(form),
+    story = startStory(a.id, { title: "Évolution", personaName: "A" });
+  assert.equal(
+    (
+      await request(
+        `/api/characters/${b.id}/evolution?storyId=${story.storyId}`,
+      )
+    ).status,
+    404,
+  );
+  assert.equal(
+    (
+      await request(`/api/characters/${b.id}/evolution`, {
+        storyId: story.storyId,
+        summary: "Interdit",
+      })
+    ).status,
+    404,
+  );
+  for (const body of [
+    null,
+    {},
+    { storyId: 0, summary: "x" },
+    { storyId: story.storyId, summary: " " },
+    { storyId: story.storyId, summary: "x", extra: "x" },
+  ])
+    assert.equal(
+      (await request(`/api/characters/${a.id}/evolution`, body)).status,
+      400,
+    );
+  assert.equal(
+    (await request(`/api/characters/${a.id}/evolution?storyId=abc`)).status,
+    400,
+  );
+  db.exec(
+    "CREATE TRIGGER test_evolution_failure BEFORE INSERT ON character_state_versions BEGIN SELECT RAISE(ABORT,'Bilan échoué'); END",
+  );
+  try {
+    assert.equal(
+      (
+        await request(`/api/characters/${a.id}/evolution`, {
+          storyId: story.storyId,
+          summary: "Bilan annulé",
+        })
+      ).status,
+      500,
+    );
+  } finally {
+    db.exec("DROP TRIGGER test_evolution_failure");
+  }
+  assert.equal(
+    db
+      .prepare(
+        "SELECT COUNT(*) AS n FROM character_state_versions WHERE character_id = ?",
+      )
+      .get(a.id)?.n,
+    0,
+  );
+});

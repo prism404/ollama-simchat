@@ -168,6 +168,15 @@ ${context.relationship.label || "Non renseignée"}
 Contexte initial :
 ${context.relationship.initialContext || "Non renseigné"}
 
+${
+  context.evolution
+    ? `ÉTAT ACTUEL VALIDÉ — CETTE HISTOIRE
+
+Cet état décrit une évolution validée dans cette histoire. Il ne réécrit pas le passé ni les limites permanentes du personnage et ne détermine pas les pensées ou décisions du persona.
+${formatData(context.evolution)}
+`
+    : ""
+}
 SCÈNE ACTUELLE
 
 Lieu :

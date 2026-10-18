@@ -56,7 +56,7 @@ L'extraction n'est pas automatique après chaque message. Le script
 
 Les tables préparent déjà plusieurs usages futurs, mais leur présence ne signifie
 pas que les workflows correspondants sont implémentés : embeddings, synthèses,
-contradictions et évolution du personnage restent à définir ou à développer.
+contradictions et propositions automatiques d’évolution restent à définir ou à développer.
 L’interface permet désormais de créer et modifier les personnages, puis de
 commencer une histoire avec un persona existant ou nouveau. L’édition d’une
 histoire déjà commencée reste hors de ce premier parcours. Voir le [backlog](BACKLOG.md).
@@ -77,3 +77,7 @@ histoire déjà commencée reste hors de ce premier parcours. Voir le [backlog](
 
 À chaque évolution : mettre à jour le backlog et ajouter une validation au journal,
 avec son contexte d'exécution. Les dates exactes inconnues ne doivent pas être inventées.
+
+## Suivi du personnage
+
+La liste des personnages affiche leur avatar et leur dernier message, avec accès direct à cet échange. Le suivi Évolution est séparé par histoire : activité, souvenirs validés compatibles et historique des bilans. Les bilans de l’état présent (humeur, objectifs, relation, leçons) sont rédigés et validés manuellement ; le dernier est utilisé dans le contexte de cette histoire. La fiche permanente et les anciennes versions sont conservées. Le temps réel ne provoque ni vieillissement automatique ni transformation inventée. Aucun appel IA supplémentaire par message.

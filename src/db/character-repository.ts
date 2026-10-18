@@ -167,9 +167,23 @@ export function listCharacters() {
   try {
     return db
       .prepare(
-        `SELECT c.id, c.name, c.avatar_path AS avatarUrl, v.version_number AS version, v.identity_json AS identity
-    FROM characters c JOIN current_character_core v ON v.character_id = c.id
-    WHERE c.status != 'archived' ORDER BY c.id DESC`,
+        `WITH owned AS (
+          SELECT conv.*, (SELECT member.character_id FROM story_cast member
+            JOIN current_character_core core ON core.character_id = member.character_id
+            WHERE member.story_id = conv.story_id ORDER BY CASE WHEN member.role = 'main' THEN 0 ELSE 1 END, member.character_id LIMIT 1) AS character_id
+          FROM conversations conv
+        ), latest AS (
+          SELECT msg.*, owned.character_id AS owner_id,
+            ROW_NUMBER() OVER (PARTITION BY owned.character_id ORDER BY msg.sent_at DESC, msg.id DESC) AS position
+          FROM messages msg JOIN owned ON owned.id = msg.conversation_id
+          WHERE NOT EXISTS (SELECT 1 FROM messages correction WHERE correction.supersedes_message_id = msg.id)
+        )
+        SELECT c.id, c.name, c.avatar_path AS avatarUrl, v.version_number AS version, v.identity_json AS identity,
+          latest.content AS lastMessage, latest.sender_type AS lastSenderType, latest.sent_at AS lastMessageAt,
+          COALESCE(latest.conversation_id, (SELECT id FROM owned WHERE character_id = c.id ORDER BY started_at DESC, id DESC LIMIT 1)) AS lastConversationId
+        FROM characters c JOIN current_character_core v ON v.character_id = c.id
+        LEFT JOIN latest ON latest.owner_id = c.id AND latest.position = 1
+        WHERE c.status != 'archived' ORDER BY latest.sent_at DESC, latest.id DESC, c.id DESC`,
       )
       .all()
       .map((row) => ({
@@ -180,6 +194,11 @@ export function listCharacters() {
           /^\/api\/character-images\/\d+$/.test(row.avatarUrl)
             ? row.avatarUrl
             : null,
+        lastMessage:
+          typeof row.lastMessage === "string" ? row.lastMessage : null,
+        lastSenderType: row.lastSenderType,
+        lastMessageAt: row.lastMessageAt,
+        lastConversationId: row.lastConversationId,
         version: row.version,
         description: read(json(row.identity).description),
       }));

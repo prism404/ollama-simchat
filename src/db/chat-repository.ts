@@ -227,7 +227,29 @@ export function loadConversationContext(
       )
       .all(conversationId, messageLimit) as StoredMessageRow[];
 
+    const evolution = db
+      .prepare(
+        `SELECT version_number, development_summary, mood_json, current_goals_json,
+      relationship_state_json, learned_lessons_json FROM character_state_versions
+      WHERE story_id = ? AND character_id = ? AND relationship_id IS ? AND review_status IN ('approved','corrected')
+      ORDER BY version_number DESC LIMIT 1`,
+      )
+      .get(
+        conversation.story_id,
+        conversation.character_id,
+        conversation.relationship_id,
+      );
     return {
+      evolution: evolution
+        ? {
+            version: Number(evolution.version_number),
+            summary: String(evolution.development_summary),
+            mood: parseJson(String(evolution.mood_json)),
+            goals: parseJson(String(evolution.current_goals_json)),
+            relationship: parseJson(String(evolution.relationship_state_json)),
+            lessons: parseJson(String(evolution.learned_lessons_json)),
+          }
+        : null,
       conversation: {
         id: conversation.conversation_id,
         title: conversation.conversation_title,

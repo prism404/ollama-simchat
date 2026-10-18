@@ -1,3 +1,4 @@
+import { CharacterEvolution } from "./CharacterEvolution";
 import { CHARACTER_TEMPLATE } from "./character-template";
 import { PersonalityGuide } from "./PersonalityGuide";
 import { CharacterGallery, type GalleryHandle } from "./CharacterGallery";
@@ -27,6 +28,10 @@ type Character = {
   description: string;
   avatarUrl?: string | null;
   version: number;
+  lastMessage: string | null;
+  lastSenderType: string | null;
+  lastMessageAt: string | null;
+  lastConversationId: number | null;
 };
 type Detail = {
   id: number;
@@ -80,7 +85,9 @@ export function Characters({
   const [characters, setCharacters] = useState<Character[]>([]);
   const [detail, setDetail] = useState<Detail | null>(null);
   const [form, setForm] = useState<Form>(blank);
-  const [mode, setMode] = useState<"list" | "edit" | "story">("list");
+  const [mode, setMode] = useState<"list" | "edit" | "story" | "evolution">(
+    "list",
+  );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -119,8 +126,10 @@ export function Characters({
       setDetail(result);
       setForm(result.form);
       setMode("edit");
+      return true;
     } catch (e) {
       setError((e as Error).message);
+      return false;
     } finally {
       setBusy(false);
     }
@@ -229,31 +238,63 @@ export function Characters({
               + Créer un personnage
             </button>
           </div>
-          <div className="character-grid">
+          <div className="character-chat-list">
             {characters.map((character) => (
-              <article key={character.id} className="memory-card">
-                <span className="badge">Version {character.version}</span>
-                <h2>
-                  {character.avatarUrl && (
+              <article key={character.id} className="character-chat-row">
+                <button
+                  className="character-chat-open"
+                  disabled={busy}
+                  onClick={() =>
+                    character.lastConversationId
+                      ? void onStarted(character.lastConversationId).catch(
+                          (e) => setError(e.message),
+                        )
+                      : void open(character.id)
+                  }
+                >
+                  {character.avatarUrl ? (
                     <img
-                      className="person-avatar"
+                      className="chat-list-avatar"
                       src={character.avatarUrl}
                       alt=""
                     />
-                  )}{" "}
-                  {character.name}
-                </h2>
-                <p className="preserve">
-                  {character.description ||
-                    "Une fiche à découvrir et à préciser."}
-                </p>
-                <button
-                  className="secondary"
-                  disabled={busy}
-                  onClick={() => void open(character.id)}
-                >
-                  Ouvrir la fiche
+                  ) : (
+                    <span
+                      className="chat-list-avatar avatar-fallback"
+                      aria-hidden="true"
+                    >
+                      {character.name.slice(0, 1)}
+                    </span>
+                  )}
+                  <span className="chat-list-text">
+                    <span className="chat-list-name">{character.name}</span>
+                    <span className="chat-list-preview">
+                      {character.lastMessage
+                        ? `${character.lastSenderType === "persona" ? "Toi : " : ""}${character.lastMessage}`
+                        : character.lastConversationId
+                          ? "Aucun message · Commencer à discuter"
+                          : "Commencer sa première histoire"}
+                    </span>
+                  </span>
                 </button>
+                <div className="chat-list-actions">
+                  <button
+                    className="text-button"
+                    disabled={busy}
+                    onClick={() => void open(character.id)}
+                  >
+                    Modifier la fiche
+                  </button>
+                  <button
+                    className="secondary"
+                    disabled={busy}
+                    onClick={async () => {
+                      if (await open(character.id)) setMode("evolution");
+                    }}
+                  >
+                    Évolution
+                  </button>
+                </div>
               </article>
             ))}
           </div>
@@ -268,6 +309,15 @@ export function Characters({
             </div>
           )}
         </>
+      ) : mode === "evolution" && detail ? (
+        <CharacterEvolution
+          id={detail.id}
+          name={detail.form.name}
+          onBack={() => {
+            setMode("list");
+            void load().catch((e) => setError(e.message));
+          }}
+        />
       ) : mode === "edit" ? (
         <>
           <button
@@ -275,6 +325,7 @@ export function Characters({
             disabled={busy || mediaBusy}
             onClick={() => {
               setMode("list");
+              void load().catch((e) => setError(e.message));
               setError("");
               setNotice("");
             }}
@@ -290,6 +341,20 @@ export function Characters({
             Écris simplement ce qui compte. Tu pourras affiner sa fiche plus
             tard.
           </p>
+          {detail && (
+            <button
+              className="secondary"
+              disabled={
+                busy ||
+                mediaBusy ||
+                mediaDirty ||
+                JSON.stringify(form) !== JSON.stringify(detail.form)
+              }
+              onClick={() => setMode("evolution")}
+            >
+              Voir son évolution
+            </button>
+          )}
           <form
             onSubmit={(e) => {
               e.preventDefault();
