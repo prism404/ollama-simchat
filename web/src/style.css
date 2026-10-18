@@ -1044,19 +1044,60 @@ main {
 .app-shell.sidebar-collapsed main {
   width: 100%;
 }
+.sidebar-brand {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
 .sidebar-toggle {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 8px;
   flex-shrink: 0;
-  font-size: 12px;
+  background: transparent;
+  color: #52664f;
+  border: 0;
+  border-radius: 8px;
+}
+.sidebar-toggle:hover:not(:disabled) {
+  background: #dce4d7;
+}
+.sidebar-rail {
+  width: 52px;
+  flex: 0 0 52px;
+  align-self: flex-start;
+  position: sticky;
+  top: 0;
+  padding: 25px 6px;
+  min-height: 100vh;
+  background: #eeeee6;
+  border-right: 1px solid #dfe2d7;
+}
+.header-actions {
+  flex-shrink: 0;
+}
+.header-actions:empty {
+  display: none;
+}
+.archives-toggle {
+  margin: 18px 0 12px;
 }
 @media (max-width: 600px) {
-  .sidebar-toggle {
-    padding: 10px;
-    max-width: 135px;
+  .sidebar-rail {
+    position: static;
+    min-height: 0;
+    width: 100%;
+    padding: 6px 14px;
+    border-right: 0;
   }
-  .sidebar-toggle span {
-    text-align: left;
+  header {
+    flex-wrap: wrap;
+  }
+  .header-actions {
+    margin-left: auto;
   }
 }

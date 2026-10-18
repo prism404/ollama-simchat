@@ -222,7 +222,42 @@ function MemoryCard({
   );
 }
 
+function SidebarToggle({
+  hidden,
+  onToggle,
+}: {
+  hidden: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      className="sidebar-toggle"
+      aria-label={hidden ? "Afficher le menu" : "Masquer le menu"}
+      title={hidden ? "Afficher le menu" : "Masquer le menu"}
+      aria-controls="main-sidebar"
+      aria-expanded={!hidden}
+      onClick={onToggle}
+    >
+      <svg
+        width="20"
+        height="20"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        aria-hidden="true"
+      >
+        <rect x="3" y="4" width="18" height="16" rx="2" />
+        <path d="M9 4v16" />
+      </svg>
+    </button>
+  );
+}
 function App() {
+  const [headerActions, setHeaderActions] = useState<HTMLDivElement | null>(
+    null,
+  );
   const [sidebarHidden, setSidebarHidden] = useState(() => {
     try {
       return localStorage.getItem("simchat.sidebarHidden") === "true";
@@ -510,10 +545,21 @@ function App() {
   }
   return (
     <div className={`app-shell${sidebarHidden ? " sidebar-collapsed" : ""}`}>
+      {sidebarHidden && (
+        <div className="sidebar-rail">
+          <SidebarToggle hidden onToggle={() => setSidebarHidden(false)} />
+        </div>
+      )}
       <aside id="main-sidebar" className="sidebar" hidden={sidebarHidden}>
-        <a className="brand wordmark" href="/" aria-label="SimChat, accueil">
-          simchat
-        </a>
+        <div className="sidebar-brand">
+          <a className="brand wordmark" href="/" aria-label="SimChat, accueil">
+            simchat
+          </a>
+          <SidebarToggle
+            hidden={false}
+            onToggle={() => setSidebarHidden(true)}
+          />
+        </div>
         <nav aria-label="Personnages" className="character-navigation">
           <button
             className={
@@ -655,30 +701,7 @@ function App() {
                     : "Les souvenirs"}
             </h1>
           </div>
-          <button
-            type="button"
-            className="sidebar-toggle secondary"
-            aria-controls="main-sidebar"
-            aria-expanded={!sidebarHidden}
-            onClick={() => setSidebarHidden((previous) => !previous)}
-            title={sidebarHidden ? "Afficher le menu" : "Masquer le menu"}
-          >
-            <svg
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.7"
-              aria-hidden="true"
-            >
-              <rect x="3" y="4" width="18" height="16" rx="2" />
-              <path d="M9 4v16" />
-            </svg>
-            <span>
-              {sidebarHidden ? "Afficher le menu" : "Masquer le menu"}
-            </span>
-          </button>
+          <div className="header-actions" ref={setHeaderActions} />
         </header>
         <div className="feedback" aria-live="polite">
           {error && (
@@ -701,6 +724,7 @@ function App() {
           <Characters
             key={selectedCharacter ?? "directory"}
             initialCharacterId={selectedCharacter}
+            headerActions={headerActions}
             onChanged={refreshCharacters}
             onStarted={async (id) => {
               const data = await api<{ conversations: Conversation[] }>(

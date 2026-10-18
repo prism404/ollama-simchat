@@ -276,3 +276,9 @@ Parcours local : arrêter les serveurs, récupérer main et lancer `npm run db:i
 - `format:check`, `typecheck` et `web:build` réussis ; changement limité à l’interface, sans écriture SQLite.
 - Chromium : nouvelles entrées Personnages/Personas, pied Local & personnel absent ; masquer puis afficher le menu, largeur du contenu augmentée, préférence conservée au rechargement, navigation Personas intacte et écran mobile 390 px sans débordement. Aucune erreur JavaScript.
 - Le bouton reste accessible dans l’en-tête lorsque le menu est masqué ; il expose son état via `aria-expanded`. Si le stockage local est bloqué, le bouton reste fonctionnel pendant la session.
+
+## Ajustements de navigation — 19 octobre 2026
+
+- Formatage, TypeScript et compilation web réussis.
+- Chromium : icône seule dans la sidebar, réouverture depuis la bande repliée ; bouton Créer un personnage dans l’en-tête uniquement sur la liste ; archives ouvertes, fermées et rouvertes ; ordre des actions Évolution / Modifier / Supprimer ; retour du formulaire à la liste et écran 390 px sans débordement, aucune erreur JavaScript.
+- Aucun changement de schéma ou de données.

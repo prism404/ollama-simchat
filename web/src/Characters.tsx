@@ -1,3 +1,4 @@
+import { createPortal } from "react-dom";
 import { Avatar, type AvatarCrop } from "./Avatar";
 import { CharacterEvolution } from "./CharacterEvolution";
 import { CHARACTER_TEMPLATE } from "./character-template";
@@ -79,7 +80,9 @@ export function Characters({
   onStarted,
   initialCharacterId = null,
   onChanged,
+  headerActions,
 }: {
+  headerActions?: HTMLElement | null;
   initialCharacterId?: number | null;
   onChanged?: () => Promise<void>;
   onStarted: (id: number) => Promise<void>;
@@ -200,6 +203,20 @@ export function Characters({
       setBusy(false);
     }
   }
+  const createButton = (
+    <button
+      disabled={busy}
+      onClick={() => {
+        setDetail(null);
+        setForm({ ...blank });
+        setNotice("");
+        setError("");
+        setMode("edit");
+      }}
+    >
+      + Créer un personnage
+    </button>
+  );
   const field = (
     key: Exclude<keyof Form, "examples">,
     label: string,
@@ -232,20 +249,11 @@ export function Characters({
       )}
       {mode === "list" ? (
         <>
+          {headerActions
+            ? createPortal(createButton, headerActions)
+            : createButton}
           <div className="memory-heading">
             <p>Une personnalité, une voix, une histoire à inventer.</p>
-            <button
-              disabled={busy}
-              onClick={() => {
-                setDetail(null);
-                setForm({ ...blank });
-                setNotice("");
-                setError("");
-                setMode("edit");
-              }}
-            >
-              + Créer un personnage
-            </button>
           </div>
           <div className="character-chat-list">
             {characters.map((character) => (
@@ -280,6 +288,22 @@ export function Characters({
                 </button>
                 <div className="chat-list-actions">
                   <button
+                    className="secondary"
+                    disabled={busy}
+                    onClick={async () => {
+                      if (await open(character.id)) setMode("evolution");
+                    }}
+                  >
+                    Évolution
+                  </button>
+                  <button
+                    className="text-button"
+                    disabled={busy}
+                    onClick={() => void open(character.id)}
+                  >
+                    Modifier
+                  </button>
+                  <button
                     className="text-button danger-text"
                     disabled={busy}
                     onClick={() => {
@@ -288,22 +312,6 @@ export function Characters({
                     }}
                   >
                     Supprimer
-                  </button>
-                  <button
-                    className="text-button"
-                    disabled={busy}
-                    onClick={() => void open(character.id)}
-                  >
-                    Modifier la fiche
-                  </button>
-                  <button
-                    className="secondary"
-                    disabled={busy}
-                    onClick={async () => {
-                      if (await open(character.id)) setMode("evolution");
-                    }}
-                  >
-                    Évolution
                   </button>
                 </div>
               </article>
@@ -367,9 +375,15 @@ export function Characters({
             </section>
           )}
           <button
-            className="text-button"
+            className="secondary archives-toggle"
+            aria-expanded={archives !== null}
+            aria-controls="archived-characters"
             disabled={busy}
             onClick={async () => {
+              if (archives !== null) {
+                setArchives(null);
+                return;
+              }
               setBusy(true);
               setError("");
               try {
@@ -387,10 +401,12 @@ export function Characters({
               }
             }}
           >
-            Voir les personnages archivés
+            {archives !== null
+              ? "Masquer les archives"
+              : "Personnages archivés"}
           </button>
           {archives && (
-            <section className="memory-card">
+            <section id="archived-characters" className="memory-card">
               <h3>Personnages archivés</h3>
               {!archives.length && <p>Aucun personnage archivé.</p>}
               {archives.map((item) => (

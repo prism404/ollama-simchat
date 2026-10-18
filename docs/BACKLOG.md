@@ -7,6 +7,8 @@ proposé = idée non encore engagée. Les priorités proposées restent à arbit
 
 ## Livré
 
+- F32 : repli du menu par icône près du nom de l’app, bande de réouverture, création dans l’en-tête, archives ouvrables/refermables et actions Évolution → Modifier → Supprimer.
+
 - F31 : menu raccourci (« Personnages », « Personas »), retrait de Local & personnel, bouton masquer/afficher conservé après rechargement ; espace récupéré dans la messagerie, sans migration.
 
 - F28 : avatars agrandis, cadrage position/zoom avec aperçu, image originale conservée, migration v4 non destructive.
