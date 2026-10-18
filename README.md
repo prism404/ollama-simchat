@@ -418,3 +418,11 @@ analyse plus développée peut prendre davantage de temps ; aucune amélioration
 réelle de sa qualité n'est présumée sans essai du modèle sur les références.
 Le canevas de génération reste copiable, mais n'est plus réaffiché en doublon de
 l'apparence. Les descriptions déjà enregistrées restent inchangées.
+
+### Avatars, personas et archivage
+
+Après cette mise à jour, arrêter les serveurs puis exécuter `npm run db:init` : la migration v4 conserve toutes les données et ajoute le cadrage d’avatar. Dans la fiche, choisir l’avatar puis ajuster position et zoom avant d’enregistrer. La liste affiche des avatars agrandis avec ce cadrage.
+
+« Mes personas » permet de créer et modifier la personne incarnée, et de choisir un persona par défaut. Lors d’une nouvelle histoire, sélectionner ce persona ou en créer un avec sa description. Les modifications de persona concernent les prochains échanges de toutes ses histoires.
+
+« Supprimer » archive le personnage après saisie exacte de son nom ; ses données sont conservées et « Voir les personnages archivés » permet de le restaurer.

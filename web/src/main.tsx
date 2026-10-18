@@ -1,3 +1,5 @@
+import { Avatar, type AvatarCrop } from "./Avatar";
+import { Personas } from "./Personas";
 import { Characters } from "./Characters";
 import { StrictMode, useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
@@ -223,15 +225,20 @@ function MemoryCard({
 function App() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [characters, setCharacters] = useState<
-    { id: number; name: string; avatarUrl?: string | null }[]
+    {
+      id: number;
+      name: string;
+      avatarUrl?: string | null;
+      avatarCrop?: AvatarCrop;
+    }[]
   >([]);
   const [selectedCharacter, setSelectedCharacter] = useState<number | null>(
     null,
   );
   const [selected, setSelected] = useState<number | null>(null);
-  const [tab, setTab] = useState<"chat" | "memories" | "characters">(
-    "characters",
-  );
+  const [tab, setTab] = useState<
+    "chat" | "memories" | "characters" | "personas"
+  >("characters");
   const [messages, setMessages] = useState<Message[]>([]);
   const [memories, setMemories] = useState<Memory[]>([]);
   const [filter, setFilter] = useState("pending");
@@ -281,7 +288,12 @@ function App() {
   }
   async function refreshCharacters() {
     const data = await api<{
-      characters: { id: number; name: string; avatarUrl?: string | null }[];
+      characters: {
+        id: number;
+        name: string;
+        avatarUrl?: string | null;
+        avatarCrop?: AvatarCrop;
+      }[];
     }>("/api/characters");
     setCharacters(data.characters);
   }
@@ -301,7 +313,12 @@ function App() {
         signal: controller.signal,
       }),
       api<{
-        characters: { id: number; name: string; avatarUrl?: string | null }[];
+        characters: {
+          id: number;
+          name: string;
+          avatarUrl?: string | null;
+          avatarCrop?: AvatarCrop;
+        }[];
       }>("/api/characters", {
         signal: controller.signal,
       }),
@@ -500,6 +517,17 @@ function App() {
           >
             Tous les personnages
           </button>
+          <button
+            className={tab === "personas" ? "nav-item active" : "nav-item"}
+            disabled={locked}
+            onClick={() => {
+              setTab("personas");
+              setError("");
+              setNotice("");
+            }}
+          >
+            Mes personas
+          </button>
           <div className="sidebar-heading">MES PERSONNAGES</div>
           {characters.map((character) => (
             <button
@@ -512,17 +540,12 @@ function App() {
               disabled={locked}
               onClick={() => chooseCharacter(character.id)}
             >
-              {character.avatarUrl ? (
-                <img
-                  className="person-avatar"
-                  src={character.avatarUrl}
-                  alt=""
-                />
-              ) : (
-                <span className="person-initial" aria-hidden="true">
-                  {character.name.slice(0, 1).toLocaleUpperCase("fr")}
-                </span>
-              )}
+              <Avatar
+                src={character.avatarUrl}
+                name={character.name}
+                crop={character.avatarCrop}
+                className="person-avatar"
+              />
               <span>{character.name}</span>
             </button>
           ))}
@@ -607,16 +630,20 @@ function App() {
         <header>
           <div>
             <span className="eyebrow">
-              {tab === "characters"
-                ? "PERSONNAGES"
-                : current?.storyTitle || "TON ESPACE"}
+              {tab === "personas"
+                ? "PERSONAS"
+                : tab === "characters"
+                  ? "PERSONNAGES"
+                  : current?.storyTitle || "TON ESPACE"}
             </span>
             <h1>
               {tab === "chat"
                 ? characterName || "Choisis un personnage"
-                : tab === "characters"
-                  ? "Les personnages"
-                  : "Les souvenirs"}
+                : tab === "personas"
+                  ? "Mes personas"
+                  : tab === "characters"
+                    ? "Les personnages"
+                    : "Les souvenirs"}
             </h1>
           </div>
         </header>
@@ -635,7 +662,9 @@ function App() {
             </div>
           )}
         </div>
-        {tab === "characters" ? (
+        {tab === "personas" ? (
+          <Personas />
+        ) : tab === "characters" ? (
           <Characters
             key={selectedCharacter ?? "directory"}
             initialCharacterId={selectedCharacter}

@@ -1,3 +1,4 @@
+import { archiveCharacter, savePersona } from "./db/profile-management.ts";
 import {
   getCharacterEvolution,
   saveCharacterEvolution,
@@ -347,7 +348,7 @@ export function createAppServer(
             if (mediaRoute[2] === "images")
               sendJson(response, 201, saveCharacterImage(id, body));
             else {
-              const imageId = (body as { imageId?: unknown }).imageId;
+              const imageId = (body as { imageId?: unknown } | null)?.imageId;
               if (
                 typeof imageId !== "number" ||
                 !Number.isSafeInteger(imageId) ||
@@ -357,7 +358,15 @@ export function createAppServer(
                   400,
                   "Identifiant d’image invalide.",
                 );
-              sendJson(response, 200, setCharacterAvatar(id, imageId));
+              sendJson(
+                response,
+                200,
+                setCharacterAvatar(
+                  id,
+                  imageId,
+                  (body as { crop?: unknown }).crop,
+                ),
+              );
             }
           } else sendJson(response, 405, { error: "Méthode non autorisée." });
         } catch (error) {
@@ -369,6 +378,61 @@ export function createAppServer(
                 error instanceof MemoryWorkflowError
                   ? error.message
                   : "Erreur de galerie. Exécute npm run db:init après la mise à jour.",
+            },
+          );
+        }
+        return;
+      }
+
+      const manageRoute = url.pathname.match(
+        /^\/api\/characters\/([^/]+)\/(archive|restore)$/,
+      );
+      const personaRoute = url.pathname.match(/^\/api\/personas\/([^/]+)$/);
+      if (
+        manageRoute ||
+        personaRoute ||
+        (url.pathname === "/api/personas" && request.method === "POST") ||
+        url.pathname === "/api/archived-characters"
+      ) {
+        try {
+          if (
+            url.pathname === "/api/archived-characters" &&
+            request.method === "GET"
+          )
+            sendJson(response, 200, { characters: listCharacters(true) });
+          else if (request.method !== "POST")
+            sendJson(response, 405, { error: "Méthode non autorisée." });
+          else {
+            let body: unknown;
+            try {
+              body = await readJsonBody(request);
+            } catch {
+              throw new MemoryWorkflowError(400, "Objet JSON invalide.");
+            }
+            sendJson(
+              response,
+              200,
+              manageRoute
+                ? archiveCharacter(
+                    parsePositiveId(manageRoute[1]),
+                    body,
+                    manageRoute[2] === "restore",
+                  )
+                : savePersona(
+                    body,
+                    personaRoute ? parsePositiveId(personaRoute[1]) : undefined,
+                  ),
+            );
+          }
+        } catch (error) {
+          sendJson(
+            response,
+            error instanceof MemoryWorkflowError ? error.status : 500,
+            {
+              error:
+                error instanceof MemoryWorkflowError
+                  ? error.message
+                  : "Enregistrement impossible.",
             },
           );
         }

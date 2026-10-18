@@ -12,7 +12,7 @@ export function listCharacterImages(id: number) {
     return db
       .prepare(
         `SELECT i.id, i.name, '/api/character-images/' || i.id AS url,
-      CASE WHEN c.avatar_path = '/api/character-images/' || i.id THEN 1 ELSE 0 END AS isAvatar
+      CASE WHEN c.avatar_path = '/api/character-images/' || i.id THEN 1 ELSE 0 END AS isAvatar, c.avatar_crop_json AS avatarCrop
       FROM character_images i JOIN characters c ON c.id = i.character_id WHERE i.character_id = ? ORDER BY i.id`,
       )
       .all(id);
@@ -64,7 +64,28 @@ export function saveCharacterImage(id: number, value: unknown) {
     db.close();
   }
 }
-export function setCharacterAvatar(id: number, imageId: number) {
+export function setCharacterAvatar(
+  id: number,
+  imageId: number,
+  crop: unknown = { x: 50, y: 50, zoom: 1 },
+) {
+  const value = crop as { x: number; y: number; zoom: number };
+  if (
+    !value ||
+    typeof value !== "object" ||
+    Array.isArray(value) ||
+    Object.keys(value).some((k) => !["x", "y", "zoom"].includes(k)) ||
+    ![value.x, value.y, value.zoom].every(
+      (v) => typeof v === "number" && Number.isFinite(v),
+    ) ||
+    value.x < 0 ||
+    value.x > 100 ||
+    value.y < 0 ||
+    value.y > 100 ||
+    value.zoom < 1 ||
+    value.zoom > 3
+  )
+    throw new MemoryWorkflowError(400, "Cadrage invalide.");
   const db = openDatabase();
   try {
     db.exec("BEGIN IMMEDIATE");
@@ -81,8 +102,8 @@ export function setCharacterAvatar(id: number, imageId: number) {
         "Cette image n’appartient pas au personnage.",
       );
     db.prepare(
-      "UPDATE characters SET avatar_path = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-    ).run(`/api/character-images/${imageId}`, id);
+      "UPDATE characters SET avatar_path = ?, avatar_crop_json = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+    ).run(`/api/character-images/${imageId}`, JSON.stringify(value), id);
     db.exec("COMMIT");
     return { avatarUrl: `/api/character-images/${imageId}` };
   } catch (error) {

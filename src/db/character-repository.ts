@@ -162,7 +162,7 @@ function requireCore(db: DatabaseSync, id: number) {
     );
   return core;
 }
-export function listCharacters() {
+export function listCharacters(archived = false) {
   const db = openDatabase();
   try {
     return db
@@ -178,17 +178,18 @@ export function listCharacters() {
           FROM messages msg JOIN owned ON owned.id = msg.conversation_id
           WHERE NOT EXISTS (SELECT 1 FROM messages correction WHERE correction.supersedes_message_id = msg.id)
         )
-        SELECT c.id, c.name, c.avatar_path AS avatarUrl, v.version_number AS version, v.identity_json AS identity,
+        SELECT c.id, c.name, c.avatar_path AS avatarUrl, c.avatar_crop_json AS avatarCrop, v.version_number AS version, v.identity_json AS identity,
           latest.content AS lastMessage, latest.sender_type AS lastSenderType, latest.sent_at AS lastMessageAt,
           COALESCE(latest.conversation_id, (SELECT id FROM owned WHERE character_id = c.id ORDER BY started_at DESC, id DESC LIMIT 1)) AS lastConversationId
         FROM characters c JOIN current_character_core v ON v.character_id = c.id
         LEFT JOIN latest ON latest.owner_id = c.id AND latest.position = 1
-        WHERE c.status != 'archived' ORDER BY latest.sent_at DESC, latest.id DESC, c.id DESC`,
+        WHERE c.status ${archived ? "=" : "!="} 'archived' ORDER BY latest.sent_at DESC, latest.id DESC, c.id DESC`,
       )
       .all()
       .map((row) => ({
         id: row.id,
         name: row.name,
+        avatarCrop: json(row.avatarCrop),
         avatarUrl:
           typeof row.avatarUrl === "string" &&
           /^\/api\/character-images\/\d+$/.test(row.avatarUrl)
@@ -394,7 +395,9 @@ export function listPersonas() {
   const db = openDatabase();
   try {
     return db
-      .prepare("SELECT id, name FROM personas ORDER BY is_default DESC, id ASC")
+      .prepare(
+        "SELECT id, name, pronouns, description, is_default AS isDefault FROM personas ORDER BY is_default DESC, id ASC",
+      )
       .all();
   } finally {
     db.close();
@@ -406,6 +409,7 @@ export function startStory(characterId: number, value: unknown) {
     "title",
     "personaId",
     "personaName",
+    "personaDescription",
     "relationship",
     "initialContext",
     "location",
@@ -419,6 +423,7 @@ export function startStory(characterId: number, value: unknown) {
     location = text(body, "location"),
     scene = text(body, "scene");
   const personaName = text(body, "personaName", false, 100);
+  const personaDescription = text(body, "personaDescription", false, 8000);
   const personaId = body.personaId;
   if (
     personaId !== undefined &&
@@ -428,7 +433,7 @@ export function startStory(characterId: number, value: unknown) {
   )
     throw new MemoryWorkflowError(400, "Persona invalide.");
   if (
-    (personaId !== undefined && personaName) ||
+    (personaId !== undefined && (personaName || personaDescription)) ||
     (personaId === undefined && !personaName)
   )
     throw new MemoryWorkflowError(
@@ -447,8 +452,9 @@ export function startStory(characterId: number, value: unknown) {
     const selectedPersona =
       personaId ??
       Number(
-        db.prepare("INSERT INTO personas(name) VALUES (?)").run(personaName)
-          .lastInsertRowid,
+        db
+          .prepare("INSERT INTO personas(name,description) VALUES (?,?)")
+          .run(personaName, personaDescription).lastInsertRowid,
       );
     const storyId = Number(
       db.prepare("INSERT INTO stories(title) VALUES (?)").run(title)

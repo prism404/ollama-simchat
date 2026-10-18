@@ -81,3 +81,11 @@ avec son contexte d'exécution. Les dates exactes inconnues ne doivent pas être
 ## Suivi du personnage
 
 La liste des personnages affiche leur avatar et leur dernier message, avec accès direct à cet échange. Le suivi Évolution est séparé par histoire : activité, souvenirs validés compatibles et historique des bilans. Les bilans de l’état présent (humeur, objectifs, relation, leçons) sont rédigés et validés manuellement ; le dernier est utilisé dans le contexte de cette histoire. La fiche permanente et les anciennes versions sont conservées. Le temps réel ne provoque ni vieillissement automatique ni transformation inventée. Aucun appel IA supplémentaire par message.
+
+## Avatars et persona incarné
+
+La galerie permet de choisir et cadrer l’avatar (position et zoom) avec aperçu, sans modifier l’image d’origine. Le cadrage est indépendant des versions de la fiche. Le schéma v4 ajoute uniquement ce réglage et conserve les anciennes données.
+
+Mes personas regroupe les fiches des personnages incarnés par la joueuse. Un persona contient un nom, des pronoms facultatifs et une description libre ; il peut être choisi par défaut pour les nouvelles histoires. Modifier un persona met à jour les prochains contextes des histoires qui le référencent, sans réécrire les messages. Le modèle respecte les décisions de la joueuse.
+
+La suppression d’un personnage est un archivage : confirmation par son nom exact, retrait des listes actives, restauration possible. Aucune fiche, image, histoire ou mémoire n’est supprimée physiquement.

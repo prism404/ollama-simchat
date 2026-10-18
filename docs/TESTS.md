@@ -8,7 +8,7 @@ sont pas attribuées lorsque seul l'ordre des échanges est connu.
 
 | Commande | Dernier résultat observé | Contexte |
 | --- | --- | --- |
-| `npm run test:memory` | 54 réussis dans Codex ; dernière exécution Windows partagée : 31 réussis | Bases temporaires, sans Ollama |
+| `npm run test:memory` | 57 réussis dans Codex ; dernière exécution Windows partagée : 31 réussis | Bases temporaires, sans Ollama |
 | `npm run format:check` | Réussi après correctif des fins de ligne | Codex et Windows |
 | `npm run typecheck` | Réussi | Codex et Windows |
 | `npm run db:check` | Codex : version 3, intégrité `ok`, zéro erreur, 39 tables/vues ; dernière preuve Windows : version 2 | Bases distinctes |
@@ -262,3 +262,11 @@ Vérification locale : ouvrir Tous les personnages → Évolution, sélectionner
 - Formatage, TypeScript, compilation web et intégrité SQLite réussis, sans migration.
 - Vérification manuelle locale : enregistrer la fiche et lire la confirmation près du bouton ; analyser une référence, relire Apparence physique puis enregistrer. Ouvrir Versions conservées → Consulter → Restaurer dans le formulaire → Enregistrer. La restauration ne concerne pas la galerie, l’avatar ou les bilans d’évolution.
 - Chromium : confirmation visible, analyse simulée remplissant automatiquement le champ, consultation de la version 1 puis restauration enregistrée en version 3 ; aucune erreur JavaScript. Le vrai modèle Ollama reste à tester localement.
+
+## Avatar, archivage et personas — 18 octobre 2026
+
+- 57 tests automatisés réussis. Cadrage : valeurs invalides refusées, réglages conservés et octets de l’image inchangés. Archivage : nom exact requis, disparition des listes actives puis restauration, versions et conversations intactes. Personas : création/édition, défaut unique, description dans le prompt, validation et erreurs sans altération.
+- Migration v1/v2 → v4 répétable, données existantes conservées et cadrage centré par défaut. `db:init`, `format:check`, `typecheck`, `web:build` et `db:check` réussis : schéma 4, intégrité ok, zéro erreur de clé étrangère.
+- Chromium sur base temporaire : création d’un persona par défaut puis présélection au début d’une histoire ; avatar cadré, enregistré et retrouvé dans la liste ; confirmation de suppression inactive avant saisie du nom ; archivage puis restauration. Écran mobile 390 px sans débordement et aucune erreur JavaScript. Aucun appel Ollama nécessaire.
+
+Parcours local : arrêter les serveurs, récupérer main et lancer `npm run db:init`. Dans la fiche choisir une image comme avatar, régler le cadrage puis enregistrer. Créer sa fiche dans Mes personas et la choisir lors d’une nouvelle histoire. Depuis Tous les personnages, Supprimer demande le nom exact ; Voir les personnages archivés permet de restaurer. L’édition d’un persona modifie ses prochaines réponses dans toutes les histoires qui l’utilisent ; les anciens messages restent inchangés.

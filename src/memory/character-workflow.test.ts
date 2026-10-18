@@ -438,7 +438,7 @@ test("le choix de modèle est transmis et les en-têtes du stream arrivent avant
   }
 });
 
-test("migration v2 → v3 répétable : avatar et anciennes données conservés", async () => {
+test("migration v2 → v4 répétable : avatar et anciennes données conservés", async () => {
   const { DatabaseSync } = await import("node:sqlite");
   const { readFileSync } = await import("node:fs");
   const { migrateDatabase } = await import("../db/migrations.ts");
@@ -461,12 +461,21 @@ test("migration v2 → v3 répétable : avatar et anciennes données conservés"
     migrateDatabase(legacy);
     legacy.exec("COMMIT");
     migrateDatabase(legacy);
-    assert.deepEqual(legacy.prepare("SELECT * FROM characters").all(), before);
+    assert.deepEqual(
+      legacy
+        .prepare("SELECT * FROM characters")
+        .all()
+        .map((row) => ({ ...row })),
+      before.map((row) => ({
+        ...row,
+        avatar_crop_json: '{"x":50,"y":50,"zoom":1}',
+      })),
+    );
     assert.equal(
       legacy
         .prepare("SELECT value FROM app_meta WHERE key = 'schema_version'")
         .get()?.value,
-      "3",
+      "4",
     );
     assert.equal(
       legacy.prepare("SELECT COUNT(*) AS n FROM character_images").get()?.n,
@@ -747,5 +756,258 @@ test("historique consultable : restauration du formulaire sans écraser les vers
   assert.equal(
     (await request(`/api/characters/${first.id}/versions/1`, {})).status,
     405,
+  );
+});
+
+test("cadrage avatar : persistance sans modifier l’image et validation des coordonnées", async () => {
+  const character = saveCharacter({ ...form, name: "Avatar cadré" });
+  const png =
+    "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRf8AAAAASUVORK5CYII=";
+  const image = await request(`/api/characters/${character.id}/images`, {
+    name: "Portrait",
+    dataUrl: png,
+  });
+  const crop = { x: 30, y: 12, zoom: 1.75 };
+  assert.equal(
+    (
+      await request(`/api/characters/${character.id}/avatar`, {
+        imageId: image.body.id,
+        crop,
+      })
+    ).status,
+    200,
+  );
+  const list = (await request("/api/characters")).body.characters;
+  assert.deepEqual(
+    list.find((c: { id: number }) => c.id === character.id).avatarCrop,
+    crop,
+  );
+  assert.deepEqual(
+    JSON.parse(
+      (await request(`/api/characters/${character.id}/images`)).body.images[0]
+        .avatarCrop,
+    ),
+    crop,
+  );
+  const bytes = await fetch(root + image.body.url);
+  assert.deepEqual(
+    Buffer.from(await bytes.arrayBuffer()),
+    Buffer.from(png.split(",")[1], "base64"),
+  );
+  for (const invalid of [
+    { x: -1, y: 50, zoom: 1 },
+    { x: 50, y: 101, zoom: 1 },
+    { x: 50, y: 50, zoom: 4 },
+    { x: "20", y: 50, zoom: 1 },
+    null,
+  ]) {
+    assert.equal(
+      (
+        await request(`/api/characters/${character.id}/avatar`, {
+          imageId: image.body.id,
+          crop: invalid,
+        })
+      ).status,
+      400,
+    );
+  }
+  assert.deepEqual(
+    JSON.parse(
+      String(
+        db
+          .prepare("SELECT avatar_crop_json FROM characters WHERE id=?")
+          .get(character.id)?.avatar_crop_json,
+      ),
+    ),
+    crop,
+  );
+});
+
+test("suppression protégée : archivage réversible, historique et histoires conservés", async () => {
+  const character = saveCharacter({ ...form, name: "À conserver" });
+  const story = startStory(character.id, {
+    title: "Histoire conservée",
+    personaName: "Moi",
+  });
+  const before = Number(
+    db
+      .prepare(
+        "SELECT COUNT(*) AS n FROM character_core_versions WHERE character_id=?",
+      )
+      .get(character.id)?.n,
+  );
+  assert.equal(
+    (
+      await request(`/api/characters/${character.id}/archive`, {
+        confirmation: "mauvais nom",
+      })
+    ).status,
+    400,
+  );
+  assert.equal(
+    (
+      await request(`/api/characters/${character.id}/archive`, {
+        confirmation: "À conserver",
+      })
+    ).status,
+    200,
+  );
+  assert.equal(
+    (await request("/api/characters")).body.characters.some(
+      (c: { id: number }) => c.id === character.id,
+    ),
+    false,
+  );
+  assert.equal(
+    (await request("/api/conversations")).body.conversations.some(
+      (c: { id: number }) => c.id === story.conversationId,
+    ),
+    false,
+  );
+  assert.equal(
+    (await request("/api/archived-characters")).body.characters.some(
+      (c: { id: number }) => c.id === character.id,
+    ),
+    true,
+  );
+  assert.equal(
+    Number(
+      db
+        .prepare(
+          "SELECT COUNT(*) AS n FROM character_core_versions WHERE character_id=?",
+        )
+        .get(character.id)?.n,
+    ),
+    before,
+  );
+  assert.ok(
+    db
+      .prepare("SELECT id FROM conversations WHERE id=?")
+      .get(story.conversationId),
+  );
+  assert.equal(
+    (
+      await request(`/api/characters/${character.id}/restore`, {
+        confirmation: "À conserver",
+      })
+    ).status,
+    200,
+  );
+  assert.equal(
+    (await request("/api/characters")).body.characters.some(
+      (c: { id: number }) => c.id === character.id,
+    ),
+    true,
+  );
+  assert.equal(
+    (await request("/api/conversations")).body.conversations.some(
+      (c: { id: number }) => c.id === story.conversationId,
+    ),
+    true,
+  );
+  assert.equal(
+    (
+      await request("/api/characters/999999/archive", {
+        confirmation: "absent",
+      })
+    ).status,
+    404,
+  );
+});
+
+test("personas : création, modification, défaut unique, contexte et erreurs sans altération", async () => {
+  const created = await request("/api/personas", {
+    name: "Rina",
+    pronouns: "elle",
+    description: "Musicienne observatrice.",
+    isDefault: true,
+  });
+  assert.equal(created.status, 200);
+  const inlineCharacter = saveCharacter(form);
+  const inlineStory = startStory(inlineCharacter.id, {
+    title: "Persona créé avec son histoire",
+    personaName: "Persona complet",
+    personaDescription: "Description dans la transaction de l’histoire.",
+  });
+  assert.equal(
+    loadConversationContext(inlineStory.conversationId).persona.description,
+    "Description dans la transaction de l’histoire.",
+  );
+  const character = saveCharacter(form);
+  const story = startStory(character.id, {
+    title: "Avec Rina",
+    personaId: created.body.id,
+  });
+  assert.equal(
+    loadConversationContext(story.conversationId).persona.description,
+    "Musicienne observatrice.",
+  );
+  const prompt = buildModelMessages(
+    loadConversationContext(story.conversationId),
+    "Bonjour",
+  )[0].content;
+  assert.ok(prompt.includes("Musicienne observatrice."));
+  await request("/api/personas", {
+    name: "Autre persona",
+    pronouns: "il",
+    description: "",
+    isDefault: true,
+  });
+  assert.equal(
+    db.prepare("SELECT SUM(is_default) AS n FROM personas").get()?.n,
+    1,
+  );
+  assert.equal(
+    (
+      await request(`/api/personas/${created.body.id}`, {
+        name: "Rina",
+        pronouns: "elle",
+        description: "Une nouvelle description.",
+        isDefault: false,
+      })
+    ).status,
+    200,
+  );
+  assert.equal(
+    loadConversationContext(story.conversationId).persona.description,
+    "Une nouvelle description.",
+  );
+  assert.equal(
+    (
+      await request(`/api/personas/${created.body.id}`, {
+        name: "",
+        pronouns: "",
+        description: "",
+        isDefault: true,
+      })
+    ).status,
+    400,
+  );
+  assert.equal(
+    (
+      await request("/api/personas/999999", {
+        name: "Inconnu",
+        pronouns: "",
+        description: "",
+        isDefault: true,
+      })
+    ).status,
+    404,
+  );
+  assert.equal(
+    db.prepare("SELECT SUM(is_default) AS n FROM personas").get()?.n,
+    1,
+  );
+  assert.equal(
+    (
+      await request("/api/personas", {
+        name: "Nom",
+        pronouns: "",
+        description: "",
+        isDefault: false,
+        extra: true,
+      })
+    ).status,
+    400,
   );
 });

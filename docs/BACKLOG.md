@@ -7,6 +7,10 @@ proposé = idée non encore engagée. Les priorités proposées restent à arbit
 
 ## Livré
 
+- F28 : avatars agrandis, cadrage position/zoom avec aperçu, image originale conservée, migration v4 non destructive.
+- F29 : suppression par archivage avec nom exact obligatoire, liste des archives et restauration ; fiches, images, conversations et souvenirs conservés.
+- F30 : Mes personas (création, édition, description, défaut), choix au départ d’une histoire et description incluse dans le contexte ; création en ligne conservée dans la transaction de l’histoire.
+
 - F27 : confirmation d’enregistrement près du bouton, analyse visuelle appliquée directement au brouillon, consultation des anciennes fiches et restauration par nouvel enregistrement ; avatar et galerie restent séparés.
 
 - F26 : liste de chats avec avatar agrandi et dernier message effectif ; évolution par histoire, activité, souvenirs validés et bilans manuels versionnés. Dernier bilan validé utilisé dans le contexte, sans modifier le socle initial.

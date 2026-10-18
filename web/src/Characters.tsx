@@ -1,3 +1,4 @@
+import { Avatar, type AvatarCrop } from "./Avatar";
 import { CharacterEvolution } from "./CharacterEvolution";
 import { CHARACTER_TEMPLATE } from "./character-template";
 import { PersonalityGuide } from "./PersonalityGuide";
@@ -27,6 +28,7 @@ type Character = {
   name: string;
   description: string;
   avatarUrl?: string | null;
+  avatarCrop?: AvatarCrop;
   version: number;
   lastMessage: string | null;
   lastSenderType: string | null;
@@ -90,6 +92,9 @@ export function Characters({
   );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [removing, setRemoving] = useState<Character | null>(null);
+  const [confirmation, setConfirmation] = useState("");
+  const [archives, setArchives] = useState<Character[] | null>(null);
   const [notice, setNotice] = useState("");
   const [preview, setPreview] = useState<Detail | null>(null);
   const gallery = useRef<GalleryHandle>(null);
@@ -100,6 +105,7 @@ export function Characters({
   const [story, setStory] = useState({
     title: "",
     personaName: "",
+    personaDescription: "",
     relationship: "Première rencontre",
     initialContext: "",
     location: "",
@@ -148,6 +154,7 @@ export function Characters({
       setStory({
         title: `Une histoire avec ${character.form.name}`,
         personaName: "",
+        personaDescription: "",
         relationship: "Première rencontre",
         initialContext: "",
         location: "",
@@ -254,20 +261,12 @@ export function Characters({
                       : void open(character.id)
                   }
                 >
-                  {character.avatarUrl ? (
-                    <img
-                      className="chat-list-avatar"
-                      src={character.avatarUrl}
-                      alt=""
-                    />
-                  ) : (
-                    <span
-                      className="chat-list-avatar avatar-fallback"
-                      aria-hidden="true"
-                    >
-                      {character.name.slice(0, 1)}
-                    </span>
-                  )}
+                  <Avatar
+                    src={character.avatarUrl}
+                    name={character.name}
+                    crop={character.avatarCrop}
+                    className="chat-list-avatar"
+                  />
                   <span className="chat-list-text">
                     <span className="chat-list-name">{character.name}</span>
                     <span className="chat-list-preview">
@@ -280,6 +279,16 @@ export function Characters({
                   </span>
                 </button>
                 <div className="chat-list-actions">
+                  <button
+                    className="text-button danger-text"
+                    disabled={busy}
+                    onClick={() => {
+                      setRemoving(character);
+                      setConfirmation("");
+                    }}
+                  >
+                    Supprimer
+                  </button>
                   <button
                     className="text-button"
                     disabled={busy}
@@ -300,6 +309,120 @@ export function Characters({
               </article>
             ))}
           </div>
+          {removing && (
+            <section
+              className="memory-card"
+              role="region"
+              aria-label="Confirmer la suppression"
+            >
+              <h3>Supprimer {removing.name} de mes personnages ?</h3>
+              <p>
+                Le personnage sera archivé et retiré de la liste. Ses fiches,
+                images, histoires et souvenirs seront conservés. Tu pourras le
+                restaurer depuis les archives.
+              </p>
+              <label className="character-field">
+                Recopie son nom pour confirmer : {removing.name}
+                <input
+                  autoFocus
+                  value={confirmation}
+                  onChange={(e) => setConfirmation(e.target.value)}
+                  disabled={busy}
+                />
+              </label>
+              <div className="actions">
+                <button
+                  disabled={busy || confirmation !== removing.name}
+                  onClick={async () => {
+                    setBusy(true);
+                    setError("");
+                    try {
+                      await request(`/api/characters/${removing.id}/archive`, {
+                        confirmation,
+                      });
+                      setRemoving(null);
+                      setArchives(null);
+                      await load();
+                      await onChanged?.();
+                      setNotice(
+                        "Personnage archivé. Ses données sont conservées.",
+                      );
+                    } catch (e) {
+                      setError((e as Error).message);
+                    } finally {
+                      setBusy(false);
+                    }
+                  }}
+                >
+                  Confirmer la suppression
+                </button>
+                <button
+                  className="secondary"
+                  disabled={busy}
+                  onClick={() => setRemoving(null)}
+                >
+                  Annuler
+                </button>
+              </div>
+            </section>
+          )}
+          <button
+            className="text-button"
+            disabled={busy}
+            onClick={async () => {
+              setBusy(true);
+              setError("");
+              try {
+                setArchives(
+                  (
+                    await request<{ characters: Character[] }>(
+                      "/api/archived-characters",
+                    )
+                  ).characters,
+                );
+              } catch (e) {
+                setError((e as Error).message);
+              } finally {
+                setBusy(false);
+              }
+            }}
+          >
+            Voir les personnages archivés
+          </button>
+          {archives && (
+            <section className="memory-card">
+              <h3>Personnages archivés</h3>
+              {!archives.length && <p>Aucun personnage archivé.</p>}
+              {archives.map((item) => (
+                <p key={item.id}>
+                  {item.name}{" "}
+                  <button
+                    disabled={busy}
+                    className="secondary"
+                    onClick={async () => {
+                      setBusy(true);
+                      setError("");
+                      try {
+                        await request(`/api/characters/${item.id}/restore`, {
+                          confirmation: item.name,
+                        });
+                        setArchives(archives.filter((a) => a.id !== item.id));
+                        await load();
+                        await onChanged?.();
+                        setNotice("Personnage restauré.");
+                      } catch (e) {
+                        setError((e as Error).message);
+                      } finally {
+                        setBusy(false);
+                      }
+                    }}
+                  >
+                    Restaurer {item.name}
+                  </button>
+                </p>
+              ))}
+            </section>
+          )}
           {!characters.length && (
             <div className="empty">
               <span className="empty-symbol">◇</span>
@@ -716,13 +839,13 @@ Ce qui peut le faire évoluer : …`,
               setBusy(true);
               setError("");
               try {
-                const { personaName, ...rest } = story;
+                const { personaName, personaDescription, ...rest } = story;
                 const result = await request<{ conversationId: number }>(
                   `/api/characters/${detail.id}/stories`,
                   {
                     ...rest,
                     ...(persona === "new"
-                      ? { personaName }
+                      ? { personaName, personaDescription }
                       : { personaId: Number(persona) }),
                   },
                 );
@@ -774,6 +897,25 @@ Ce qui peut le faire évoluer : …`,
                   />
                 </label>
               )}
+              {persona === "new" && (
+                <label className="character-field">
+                  Description de ton persona
+                  <textarea
+                    rows={8}
+                    maxLength={8000}
+                    value={story.personaDescription}
+                    placeholder="Identité, apparence, personnalité et passé connu de la personne que tu incarnes."
+                    onChange={(e) =>
+                      setStory({ ...story, personaDescription: e.target.value })
+                    }
+                  />
+                </label>
+              )}
+              <p className="muted">
+                Retrouve et complète tes fiches dans « Mes personas ». Les
+                changements d’un persona s’appliqueront à ses prochaines
+                conversations.
+              </p>
               {(
                 [
                   [

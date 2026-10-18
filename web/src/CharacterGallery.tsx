@@ -1,3 +1,4 @@
+import { Avatar, type AvatarCrop } from "./Avatar";
 import {
   forwardRef,
   useEffect,
@@ -5,7 +6,13 @@ import {
   useRef,
   useState,
 } from "react";
-type Image = { id: number; name: string; url: string; isAvatar: number };
+type Image = {
+  avatarCrop: string;
+  id: number;
+  name: string;
+  url: string;
+  isAvatar: number;
+};
 type Pending = { key: string; name: string; dataUrl: string };
 export type GalleryHandle = { flush: (characterId: number) => Promise<void> };
 async function api<T>(path: string, body?: unknown): Promise<T> {
@@ -63,6 +70,13 @@ export const CharacterGallery = forwardRef<
   const [images, setImages] = useState<Image[]>([]),
     [pending, setPending] = useState<Pending[]>([]),
     [choice, setChoice] = useState("");
+  const [crop, setCrop] = useState<AvatarCrop>({ x: 50, y: 50, zoom: 1 });
+  const cropRef = useRef<AvatarCrop>({ x: 50, y: 50, zoom: 1 });
+  function changeCrop(next: AvatarCrop, key: string) {
+    cropRef.current = next;
+    setCrop(next);
+    updateChoice(key);
+  }
   const pendingRef = useRef<Pending[]>([]),
     choiceRef = useRef("");
   const [busy, setBusy] = useState(false),
@@ -92,6 +106,14 @@ export const CharacterGallery = forwardRef<
       `/api/characters/${characterId}/images`,
     );
     setImages(data.images);
+    if (!choiceRef.current) {
+      const current = data.images.find((image) => image.isAvatar);
+      const next = current?.avatarCrop
+        ? JSON.parse(current.avatarCrop)
+        : { x: 50, y: 50, zoom: 1 };
+      cropRef.current = next;
+      setCrop(next);
+    }
     setSelected((previous) =>
       previous.length
         ? previous
@@ -188,6 +210,7 @@ export const CharacterGallery = forwardRef<
       if (choiceRef.current.startsWith("stored:"))
         await api(`/api/characters/${characterId}/avatar`, {
           imageId: Number(choiceRef.current.slice(7)),
+          crop: cropRef.current,
         });
       updateChoice("");
       await load(characterId);
@@ -303,7 +326,12 @@ export const CharacterGallery = forwardRef<
               type="button"
               className="secondary"
               disabled={locked}
-              onClick={() => updateChoice(image.key)}
+              onClick={() =>
+                changeCrop(
+                  image.isAvatar ? crop : { x: 50, y: 50, zoom: 1 },
+                  image.key,
+                )
+              }
             >
               {choice === image.key
                 ? "Avatar choisi · à enregistrer"
@@ -334,6 +362,59 @@ export const CharacterGallery = forwardRef<
           </figure>
         ))}
       </div>
+      {(() => {
+        const chosen = entries.find((image) =>
+          choice ? image.key === choice : image.isAvatar,
+        );
+        return chosen ? (
+          <section className="avatar-editor">
+            <h3>Cadrer l’avatar</h3>
+            <p>
+              Place le visage dans le cadre. Ces réglages seront conservés avec
+              la fiche ; l’image originale reste intacte.
+            </p>
+            <Avatar
+              src={chosen.url}
+              name="l’aperçu"
+              crop={crop}
+              className="avatar-preview"
+            />
+            {(
+              [
+                ["x", "Position horizontale", 0, 100, 1],
+                ["y", "Position verticale", 0, 100, 1],
+                ["zoom", "Zoom", 1, 3, 0.05],
+              ] as const
+            ).map(([key, label, min, max, step]) => (
+              <label className="character-field" key={key}>
+                {label}
+                <input
+                  type="range"
+                  min={min}
+                  max={max}
+                  step={step}
+                  value={crop[key]}
+                  disabled={locked}
+                  onChange={(e) =>
+                    changeCrop(
+                      { ...crop, [key]: Number(e.target.value) },
+                      chosen.key,
+                    )
+                  }
+                />
+              </label>
+            ))}
+            <button
+              type="button"
+              className="secondary"
+              disabled={locked}
+              onClick={() => changeCrop({ x: 50, y: 50, zoom: 1 }, chosen.key)}
+            >
+              Réinitialiser le cadrage
+            </button>
+          </section>
+        ) : null;
+      })()}
       <div className="vision-tools">
         <h3>Décrire l’apparence depuis les images</h3>
         <p className="muted">

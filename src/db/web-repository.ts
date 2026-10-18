@@ -18,6 +18,7 @@ export function listConversations() {
         s.title AS storyTitle FROM owned c
       JOIN stories s ON s.id = c.story_id
       LEFT JOIN characters character ON character.id = c.characterId
+      WHERE character.status IS NULL OR character.status != 'archived'
       ORDER BY c.started_at DESC, c.id DESC`,
       )
       .all();
