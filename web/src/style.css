@@ -184,18 +184,6 @@ nav {
   padding: 4px 0;
   font-size: 12px;
 }
-.local-note {
-  font-size: 9px;
-  letter-spacing: 1.8px;
-  color: #7d8679;
-  margin-top: 28px;
-  border-top: 1px solid #d9ded1;
-  padding-top: 22px;
-}
-.local-note span {
-  font-size: 11px;
-  letter-spacing: 0;
-}
 main {
   flex: 1;
   min-width: 0;
@@ -516,9 +504,6 @@ blockquote p {
     font-size: 27px;
   }
 
-  .local-note {
-    display: none;
-  }
   .conversation-picker {
     display: block;
     margin-top: 16px;
@@ -1050,5 +1035,28 @@ main {
   }
   .chat-list-name {
     overflow-wrap: anywhere;
+  }
+}
+
+.sidebar[hidden] {
+  display: none;
+}
+.app-shell.sidebar-collapsed main {
+  width: 100%;
+}
+.sidebar-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  font-size: 12px;
+}
+@media (max-width: 600px) {
+  .sidebar-toggle {
+    padding: 10px;
+    max-width: 135px;
+  }
+  .sidebar-toggle span {
+    text-align: left;
   }
 }

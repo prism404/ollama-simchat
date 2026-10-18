@@ -1,6 +1,6 @@
 # Journal des validations
 
-Mis à jour le 18 octobre 2026. Les résultats ci-dessous proviennent des exécutions
+Mis à jour le 19 octobre 2026. Les résultats ci-dessous proviennent des exécutions
 Codex et des sorties locales partagées par l'utilisatrice. Les dates précises ne
 sont pas attribuées lorsque seul l'ordre des échanges est connu.
 
@@ -270,3 +270,9 @@ Vérification locale : ouvrir Tous les personnages → Évolution, sélectionner
 - Chromium sur base temporaire : création d’un persona par défaut puis présélection au début d’une histoire ; avatar cadré, enregistré et retrouvé dans la liste ; confirmation de suppression inactive avant saisie du nom ; archivage puis restauration. Écran mobile 390 px sans débordement et aucune erreur JavaScript. Aucun appel Ollama nécessaire.
 
 Parcours local : arrêter les serveurs, récupérer main et lancer `npm run db:init`. Dans la fiche choisir une image comme avatar, régler le cadrage puis enregistrer. Créer sa fiche dans Mes personas et la choisir lors d’une nouvelle histoire. Depuis Tous les personnages, Supprimer demande le nom exact ; Voir les personnages archivés permet de restaurer. L’édition d’un persona modifie ses prochaines réponses dans toutes les histoires qui l’utilisent ; les anciens messages restent inchangés.
+
+## Menu repliable — 19 octobre 2026
+
+- `format:check`, `typecheck` et `web:build` réussis ; changement limité à l’interface, sans écriture SQLite.
+- Chromium : nouvelles entrées Personnages/Personas, pied Local & personnel absent ; masquer puis afficher le menu, largeur du contenu augmentée, préférence conservée au rechargement, navigation Personas intacte et écran mobile 390 px sans débordement. Aucune erreur JavaScript.
+- Le bouton reste accessible dans l’en-tête lorsque le menu est masqué ; il expose son état via `aria-expanded`. Si le stockage local est bloqué, le bouton reste fonctionnel pendant la session.

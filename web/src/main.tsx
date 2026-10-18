@@ -223,6 +223,20 @@ function MemoryCard({
 }
 
 function App() {
+  const [sidebarHidden, setSidebarHidden] = useState(() => {
+    try {
+      return localStorage.getItem("simchat.sidebarHidden") === "true";
+    } catch {
+      return false;
+    }
+  });
+  useEffect(() => {
+    try {
+      localStorage.setItem("simchat.sidebarHidden", String(sidebarHidden));
+    } catch {
+      /* Le menu reste utilisable si le stockage est désactivé. */
+    }
+  }, [sidebarHidden]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [characters, setCharacters] = useState<
     {
@@ -495,8 +509,8 @@ function App() {
     }
   }
   return (
-    <div className="app-shell">
-      <aside className="sidebar">
+    <div className={`app-shell${sidebarHidden ? " sidebar-collapsed" : ""}`}>
+      <aside id="main-sidebar" className="sidebar" hidden={sidebarHidden}>
         <a className="brand wordmark" href="/" aria-label="SimChat, accueil">
           simchat
         </a>
@@ -515,7 +529,7 @@ function App() {
               setNotice("");
             }}
           >
-            Tous les personnages
+            Personnages
           </button>
           <button
             className={tab === "personas" ? "nav-item active" : "nav-item"}
@@ -526,7 +540,7 @@ function App() {
               setNotice("");
             }}
           >
-            Mes personas
+            Personas
           </button>
           <div className="sidebar-heading">MES PERSONNAGES</div>
           {characters.map((character) => (
@@ -620,11 +634,6 @@ function App() {
             Vérifier la connexion ↻
           </button>
         </div>
-        <div className="local-note">
-          LOCAL & PERSONNEL
-          <br />
-          <span>Tes histoires, sur ton ordinateur.</span>
-        </div>
       </aside>
       <main>
         <header>
@@ -646,6 +655,30 @@ function App() {
                     : "Les souvenirs"}
             </h1>
           </div>
+          <button
+            type="button"
+            className="sidebar-toggle secondary"
+            aria-controls="main-sidebar"
+            aria-expanded={!sidebarHidden}
+            onClick={() => setSidebarHidden((previous) => !previous)}
+            title={sidebarHidden ? "Afficher le menu" : "Masquer le menu"}
+          >
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.7"
+              aria-hidden="true"
+            >
+              <rect x="3" y="4" width="18" height="16" rx="2" />
+              <path d="M9 4v16" />
+            </svg>
+            <span>
+              {sidebarHidden ? "Afficher le menu" : "Masquer le menu"}
+            </span>
+          </button>
         </header>
         <div className="feedback" aria-live="polite">
           {error && (

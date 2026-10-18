@@ -1,11 +1,13 @@
 # Backlog — Ollama SimChat
 
-Mis à jour le 18 octobre 2026 à partir du dépôt et des résultats partagés dans le chat.
+Mis à jour le 19 octobre 2026 à partir du dépôt et des résultats partagés dans le chat.
 
 **Statuts :** livré = implémenté ; à vérifier = validation complémentaire ;
 proposé = idée non encore engagée. Les priorités proposées restent à arbitrer.
 
 ## Livré
+
+- F31 : menu raccourci (« Personnages », « Personas »), retrait de Local & personnel, bouton masquer/afficher conservé après rechargement ; espace récupéré dans la messagerie, sans migration.
 
 - F28 : avatars agrandis, cadrage position/zoom avec aperçu, image originale conservée, migration v4 non destructive.
 - F29 : suppression par archivage avec nom exact obligatoire, liste des archives et restauration ; fiches, images, conversations et souvenirs conservés.
