@@ -1,6 +1,6 @@
 # Backlog — Ollama SimChat
 
-Mis à jour le 17 octobre 2026 à partir du dépôt et des résultats partagés dans le chat.
+Mis à jour le 18 octobre 2026 à partir du dépôt et des résultats partagés dans le chat.
 
 **Statuts :** livré = implémenté ; à vérifier = validation complémentaire ;
 proposé = idée non encore engagée. Les priorités proposées restent à arbitrer.
@@ -33,6 +33,7 @@ proposé = idée non encore engagée. Les priorités proposées restent à arbit
 | F22 | Images préparées dans la fiche avant création et choix d’avatar à l’enregistrement | Dix références vérifiées dans Chromium ; reprise des ajouts après erreur partielle |
 | F23 | Description physique proposée depuis les références | Détection des capacités vision, analyse explicite et application manuelle ; vrai Ollama à vérifier localement |
 | F24 | Guide de personnalité contextualisé | Quatre dimensions, proposition éditable et application explicite, sans appel IA |
+| F25 | Apparence détaillée en rubriques et suppression de l’affichage en doublon | Nouveau prompt vision ; descriptions actuelles conservées, qualité à vérifier sur les images réelles |
 
 ## À vérifier
 

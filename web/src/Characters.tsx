@@ -350,7 +350,7 @@ export function Characters({
                 "appearance",
                 "Apparence physique",
                 "Âge apparent adulte, forme du visage, yeux, cheveux, silhouette, signes distinctifs et vêtements habituels. Sépare les traits stables de la tenue de la scène.",
-                5,
+                10,
               )}
             </fieldset>
             <fieldset disabled={busy}>

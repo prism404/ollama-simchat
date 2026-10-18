@@ -126,3 +126,19 @@ test("personnalité guidée : propositions contextualisées et choix mutuellemen
     /invalide/,
   );
 });
+
+test("une description coupée par la limite du modèle ne devient pas une proposition complète", async () => {
+  const fake: typeof fetch = async (input) =>
+    Response.json(
+      String(input).endsWith("/api/show")
+        ? { capabilities: ["vision"] }
+        : {
+            message: { content: "VISAGE : description interrompue" },
+            done_reason: "length",
+          },
+    );
+  await assert.rejects(
+    () => describeAppearance({ model: "vision:4b", images: [image] }, fake),
+    /interrompue/,
+  );
+});

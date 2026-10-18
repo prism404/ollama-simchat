@@ -391,7 +391,7 @@ export const CharacterGallery = forwardRef<
             <label className="character-field">
               Description proposée à relire
               <textarea
-                rows={7}
+                rows={14}
                 maxLength={8000}
                 value={proposal}
                 disabled={locked}
@@ -425,8 +425,10 @@ export const CharacterGallery = forwardRef<
         <summary>Préparer une génération d’image fidèle</summary>
         <p>
           La génération d’images n’est pas encore connectée. Conserve des vues
-          du même personnage et sépare les traits stables des vêtements et de
-          l’éclairage. Les références ne garantissent pas une identité parfaite.
+          du même personnage. Le bouton copie l’apparence actuelle de la fiche
+          dans un canevas de génération ; il ne lance pas une nouvelle analyse.
+          Sépare les traits stables des vêtements et de l’éclairage. Les
+          références ne garantissent pas une identité parfaite.
         </p>
         <button
           type="button"
@@ -436,13 +438,14 @@ export const CharacterGallery = forwardRef<
               await navigator.clipboard.writeText(referencePrompt);
               setNotice("Description visuelle copiée.");
             } catch {
-              setError("Copie impossible ; sélectionne le texte ci-dessous.");
+              setError(
+                "Copie impossible. Tu peux copier le champ Apparence physique directement.",
+              );
             }
           }}
         >
           Copier la description visuelle
         </button>
-        <pre className="reference-prompt">{referencePrompt}</pre>
       </details>
     </section>
   );

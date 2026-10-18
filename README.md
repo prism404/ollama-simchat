@@ -408,3 +408,13 @@ Routes de lecture/analyse ajoutées : `GET /api/vision/models`,
 Maximum dix références et 7 Mo de base64 pour l'analyse ; les formats et tailles
 sont validés. Une erreur Ollama ou un modèle texte donne une erreur explicite,
 sans fabriquer de description de remplacement.
+
+L'analyse d'apparence demande une fiche détaillée en sept rubriques : allure,
+visage, yeux, cheveux, signes distinctifs, variations entre vues, puis repères
+stables et incertitudes. Elle vise 300 à 500 mots seulement si les références
+permettent de les étayer, sans inventer de détails. Une réponse coupée par la
+limite de génération est signalée plutôt que présentée comme complète. Cette
+analyse plus développée peut prendre davantage de temps ; aucune amélioration
+réelle de sa qualité n'est présumée sans essai du modèle sur les références.
+Le canevas de génération reste copiable, mais n'est plus réaffiché en doublon de
+l'apparence. Les descriptions déjà enregistrées restent inchangées.

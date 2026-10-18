@@ -8,7 +8,7 @@ sont pas attribuées lorsque seul l'ordre des échanges est connu.
 
 | Commande | Dernier résultat observé | Contexte |
 | --- | --- | --- |
-| `npm run test:memory` | 48 réussis dans Codex ; dernière exécution Windows partagée : 31 réussis | Bases temporaires, sans Ollama |
+| `npm run test:memory` | 49 réussis dans Codex ; dernière exécution Windows partagée : 31 réussis | Bases temporaires, sans Ollama |
 | `npm run format:check` | Réussi après correctif des fins de ligne | Codex et Windows |
 | `npm run typecheck` | Réussi | Codex et Windows |
 | `npm run db:check` | Codex : version 3, intégrité `ok`, zéro erreur, 39 tables/vues ; dernière preuve Windows : version 2 | Bases distinctes |
@@ -236,3 +236,14 @@ et rechargement des dix images et de la fiche. Aucun débordement mobile ni erre
 JavaScript observé. L'analyse réelle et la qualité de la description restent à
 vérifier sur les références de l'utilisatrice et son modèle vision. Aucun changement
 de schéma depuis v3. L'analyse ne constitue pas une génération d'image.
+
+
+## 18 octobre 2026 — apparence détaillée et suppression du doublon
+
+Le canevas copiable n'est plus réaffiché en doublon de l'apparence. Le prompt vision
+demande sept rubriques d'observations physiques et une description développée si
+les vues le permettent. Budget de sortie augmenté à 1 400 tokens, sans compléter
+les détails inconnus. Nouveau test : réponse interrompue par la limite du modèle
+refusée comme proposition complète. Total : 49 tests réussis ; formatage, types,
+compilation et intégrité SQLite réussis. Aucun essai visuel réel supplémentaire
+ni réécriture des descriptions enregistrées.
