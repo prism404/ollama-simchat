@@ -699,3 +699,53 @@ test("évolution : entrées invalides, histoires étrangères et rollback du bil
     0,
   );
 });
+
+test("historique consultable : restauration du formulaire sans écraser les versions ni mélanger les exemples", async () => {
+  const first = saveCharacter({
+    ...form,
+    name: "Ancien nom",
+    appearance: "Cheveux noirs",
+  });
+  saveCharacter(
+    {
+      ...form,
+      name: "Nouveau nom",
+      appearance: "Cheveux gris",
+      exampleReply: "Une autre réponse.",
+    },
+    first.id,
+  );
+  const snapshot = await request(`/api/characters/${first.id}/versions/1`);
+  assert.equal(snapshot.status, 200);
+  assert.equal(snapshot.body.form.name, "Ancien nom");
+  assert.equal(snapshot.body.form.appearance, "Cheveux noirs");
+  assert.equal(snapshot.body.form.examples[0].reply, form.exampleReply);
+  assert.equal(getCharacter(first.id).version, 2);
+  const restored = await request(
+    `/api/characters/${first.id}`,
+    snapshot.body.form,
+  );
+  assert.equal(restored.status, 200);
+  const current = getCharacter(first.id);
+  assert.equal(current.version, 3);
+  assert.equal(current.form.name, "Ancien nom");
+  assert.equal(current.form.appearance, "Cheveux noirs");
+  assert.equal(current.versions.length, 3);
+  assert.equal(
+    (await request(`/api/characters/${first.id}/versions/2`)).body.form
+      .appearance,
+    "Cheveux gris",
+  );
+  assert.equal(
+    (await request(`/api/characters/${first.id}/versions/9999`)).status,
+    404,
+  );
+  assert.equal(
+    (await request(`/api/characters/${first.id}/versions/0`)).status,
+    400,
+  );
+  assert.equal(
+    (await request(`/api/characters/${first.id}/versions/1`, {})).status,
+    405,
+  );
+});

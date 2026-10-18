@@ -7,6 +7,8 @@ proposé = idée non encore engagée. Les priorités proposées restent à arbit
 
 ## Livré
 
+- F27 : confirmation d’enregistrement près du bouton, analyse visuelle appliquée directement au brouillon, consultation des anciennes fiches et restauration par nouvel enregistrement ; avatar et galerie restent séparés.
+
 - F26 : liste de chats avec avatar agrandi et dernier message effectif ; évolution par histoire, activité, souvenirs validés et bilans manuels versionnés. Dernier bilan validé utilisé dans le contexte, sans modifier le socle initial.
 
 | ID | Tâche | Preuve / référence |

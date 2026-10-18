@@ -375,6 +375,38 @@ export function createAppServer(
         return;
       }
 
+      const versionRoute = url.pathname.match(
+        /^\/api\/characters\/([^/]+)\/versions\/([^/]+)$/,
+      );
+      if (versionRoute) {
+        try {
+          if (request.method !== "GET") {
+            sendJson(response, 405, { error: "Méthode non autorisée." });
+          } else {
+            sendJson(
+              response,
+              200,
+              getCharacter(
+                parsePositiveId(versionRoute[1]),
+                parsePositiveId(versionRoute[2]),
+              ),
+            );
+          }
+        } catch (error) {
+          sendJson(
+            response,
+            error instanceof MemoryWorkflowError ? error.status : 500,
+            {
+              error:
+                error instanceof MemoryWorkflowError
+                  ? error.message
+                  : "Lecture de la version impossible.",
+            },
+          );
+        }
+        return;
+      }
+
       const evolutionRoute = url.pathname.match(
         /^\/api\/characters\/([^/]+)\/evolution$/,
       );

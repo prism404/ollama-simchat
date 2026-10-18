@@ -206,10 +206,21 @@ export function listCharacters() {
     db.close();
   }
 }
-export function getCharacter(id: number) {
+export function getCharacter(id: number, version?: number) {
   const db = openDatabase();
   try {
-    const core = requireCore(db, id);
+    const current = requireCore(db, id);
+    if (version !== undefined) parsePositiveId(String(version));
+    const core =
+      version === undefined
+        ? current
+        : db
+            .prepare(
+              `SELECT core.*, c.name FROM character_core_versions core JOIN characters c ON c.id=core.character_id
+       WHERE core.character_id=? AND core.version_number=? AND core.review_status IN ('approved','corrected')`,
+            )
+            .get(id, version);
+    if (!core) throw new MemoryWorkflowError(404, "Version introuvable.");
     const identity = json(core.identity_json),
       personality = json(core.personality_json),
       speech = json(core.speech_style_json);
@@ -234,7 +245,7 @@ export function getCharacter(id: number) {
         user: read(row.user_message),
         reply: read(row.ideal_response),
       })),
-      name: read(core.name),
+      name: read(identity.name) || read(core.name),
       pronouns: read(identity.pronouns),
       description: read(identity.description),
       personality: Array.isArray(personality.traits)

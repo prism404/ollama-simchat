@@ -8,7 +8,7 @@ sont pas attribuées lorsque seul l'ordre des échanges est connu.
 
 | Commande | Dernier résultat observé | Contexte |
 | --- | --- | --- |
-| `npm run test:memory` | 53 réussis dans Codex ; dernière exécution Windows partagée : 31 réussis | Bases temporaires, sans Ollama |
+| `npm run test:memory` | 54 réussis dans Codex ; dernière exécution Windows partagée : 31 réussis | Bases temporaires, sans Ollama |
 | `npm run format:check` | Réussi après correctif des fins de ligne | Codex et Windows |
 | `npm run typecheck` | Réussi | Codex et Windows |
 | `npm run db:check` | Codex : version 3, intégrité `ok`, zéro erreur, 39 tables/vues ; dernière preuve Windows : version 2 | Bases distinctes |
@@ -255,3 +255,10 @@ ni réécriture des descriptions enregistrées.
 - Chromium sur base temporaire : aperçu du dernier message, ouverture du suivi, création de deux bilans, affichage de l’historique ; largeur mobile 390 px sans débordement et aucune erreur JavaScript. Aucun appel Ollama dans ce parcours.
 
 Vérification locale : ouvrir Tous les personnages → Évolution, sélectionner une histoire, puis Décrire son évolution. Enregistrer deux bilans et consulter les versions précédentes. Changer d’histoire : son état reste séparé. Les souvenirs acceptés ou corrigés apparaissent après actualisation ; les propositions en attente sont exclues. La fiche de départ reste conservée.
+
+## Historique de fiche et apparence automatique — 18 octobre 2026
+
+- 54 tests passent. Le nouveau test HTTP consulte une ancienne fiche avec son ancien nom et ses exemples, la restaure en version 3 et vérifie la conservation de la version 2, ainsi que les erreurs 400/404/405.
+- Formatage, TypeScript, compilation web et intégrité SQLite réussis, sans migration.
+- Vérification manuelle locale : enregistrer la fiche et lire la confirmation près du bouton ; analyser une référence, relire Apparence physique puis enregistrer. Ouvrir Versions conservées → Consulter → Restaurer dans le formulaire → Enregistrer. La restauration ne concerne pas la galerie, l’avatar ou les bilans d’évolution.
+- Chromium : confirmation visible, analyse simulée remplissant automatiquement le champ, consultation de la version 1 puis restauration enregistrée en version 3 ; aucune erreur JavaScript. Le vrai modèle Ollama reste à tester localement.

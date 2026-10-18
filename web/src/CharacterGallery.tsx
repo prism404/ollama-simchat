@@ -55,18 +55,9 @@ export const CharacterGallery = forwardRef<
     onWorking?: (value: boolean) => void;
     onPendingChange?: (value: boolean) => void;
     onAppearance: (text: string) => void;
-    referencePrompt: string;
   }
 >(function CharacterGallery(
-  {
-    id,
-    disabled = false,
-    onChanged,
-    onWorking,
-    onPendingChange,
-    onAppearance,
-    referencePrompt,
-  },
+  { id, disabled = false, onChanged, onWorking, onPendingChange, onAppearance },
   ref,
 ) {
   const [images, setImages] = useState<Image[]>([]),
@@ -81,7 +72,6 @@ export const CharacterGallery = forwardRef<
     [models, setModels] = useState<string[]>([]),
     [model, setModel] = useState(""),
     [visionError, setVisionError] = useState("");
-  const [proposal, setProposal] = useState("");
   const locked = disabled || busy;
   function working(value: boolean) {
     setBusy(value);
@@ -229,7 +219,6 @@ export const CharacterGallery = forwardRef<
   async function analyze() {
     working(true);
     setError("");
-    setProposal("");
     setNotice(
       "Analyse visuelle en cours ; cela peut prendre plusieurs minutes.",
     );
@@ -246,8 +235,10 @@ export const CharacterGallery = forwardRef<
         "/api/vision/appearance",
         { model, images: prepared },
       );
-      setProposal(data.description);
-      setNotice("Proposition générée. Relis-la avant de l’appliquer.");
+      onAppearance(data.description);
+      setNotice(
+        "Apparence physique remplie. Relis-la dans Présentation, puis enregistre la fiche pour la conserver.",
+      );
     } catch (e) {
       setError((e as Error).message);
       setNotice("");
@@ -386,67 +377,7 @@ export const CharacterGallery = forwardRef<
             Actualiser les modèles
           </button>
         </div>
-        {proposal && (
-          <div className="vision-proposal">
-            <label className="character-field">
-              Description proposée à relire
-              <textarea
-                rows={14}
-                maxLength={8000}
-                value={proposal}
-                disabled={locked}
-                onChange={(e) => setProposal(e.target.value)}
-              />
-            </label>
-            <button
-              type="button"
-              disabled={locked || !proposal.trim()}
-              onClick={() => {
-                onAppearance(proposal.trim());
-                setNotice(
-                  "Description appliquée au brouillon. Enregistre la fiche pour la conserver.",
-                );
-              }}
-            >
-              Remplacer l’apparence du brouillon
-            </button>
-            <button
-              type="button"
-              className="text-button"
-              disabled={locked}
-              onClick={() => setProposal("")}
-            >
-              Écarter la proposition
-            </button>
-          </div>
-        )}
       </div>
-      <details>
-        <summary>Préparer une génération d’image fidèle</summary>
-        <p>
-          La génération d’images n’est pas encore connectée. Conserve des vues
-          du même personnage. Le bouton copie l’apparence actuelle de la fiche
-          dans un canevas de génération ; il ne lance pas une nouvelle analyse.
-          Sépare les traits stables des vêtements et de l’éclairage. Les
-          références ne garantissent pas une identité parfaite.
-        </p>
-        <button
-          type="button"
-          className="secondary"
-          onClick={async () => {
-            try {
-              await navigator.clipboard.writeText(referencePrompt);
-              setNotice("Description visuelle copiée.");
-            } catch {
-              setError(
-                "Copie impossible. Tu peux copier le champ Apparence physique directement.",
-              );
-            }
-          }}
-        >
-          Copier la description visuelle
-        </button>
-      </details>
     </section>
   );
 });

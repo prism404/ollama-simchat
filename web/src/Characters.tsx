@@ -91,6 +91,7 @@ export function Characters({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [preview, setPreview] = useState<Detail | null>(null);
   const gallery = useRef<GalleryHandle>(null);
   const [mediaBusy, setMediaBusy] = useState(false);
   const [mediaDirty, setMediaDirty] = useState(false);
@@ -121,6 +122,7 @@ export function Characters({
     setBusy(true);
     setError("");
     setNotice("");
+    setPreview(null);
     try {
       const result = await request<Detail>(`/api/characters/${id}`);
       setDetail(result);
@@ -428,11 +430,6 @@ export function Characters({
                 onPendingChange={setMediaDirty}
                 onAppearance={(text) => update("appearance", text)}
                 onChanged={onChanged}
-                referencePrompt={`PERSONNAGE : ${form.name}
-GENRE : ${form.gender || "non défini"}
-TRAITS VISUELS STABLES : ${form.appearance || "à préciser"}
-SCÈNE : [décrire le lieu, l’action, la tenue et l’éclairage]
-Conserver l’identité et les traits des images de référence. Adapter la scène sans changer le visage.`}
               />
             </fieldset>
             <fieldset disabled={busy}>
@@ -573,6 +570,11 @@ Ce qui peut le faire évoluer : …`,
                 </button>
               )}
             </div>
+            {notice && (
+              <div className="notice" role="status">
+                {notice}
+              </div>
+            )}
             <p className="muted">
               Chaque enregistrement valide une nouvelle version. L’ancienne
               fiche est conservée. Enregistre tes modifications avant de
@@ -585,10 +587,111 @@ Ce qui peut le faire évoluer : …`,
               {detail.versions.map((version) => (
                 <p key={version.version}>
                   Version {version.version} · {version.name} ·{" "}
-                  {version.createdAt}
+                  {version.createdAt}{" "}
+                  <button
+                    type="button"
+                    className="secondary"
+                    disabled={busy || mediaBusy || mediaDirty}
+                    onClick={async () => {
+                      setBusy(true);
+                      setError("");
+                      try {
+                        setPreview(
+                          await request<Detail>(
+                            `/api/characters/${detail.id}/versions/${version.version}`,
+                          ),
+                        );
+                      } catch (e) {
+                        setError((e as Error).message);
+                      } finally {
+                        setBusy(false);
+                      }
+                    }}
+                  >
+                    Consulter la version {version.version}
+                  </button>
                 </p>
               ))}
             </details>
+          )}
+          {preview && detail && (
+            <section className="memory-card" aria-label="Ancienne version">
+              <h3>
+                Version {preview.version} — {preview.form.name}
+              </h3>
+              <p>
+                La restauration chargera cette version dans le formulaire.
+                Enregistre ensuite la fiche pour créer une nouvelle version. Les
+                images, l’avatar, les conversations et les bilans d’évolution
+                restent séparés.
+              </p>
+              <dl>
+                {Object.entries(preview.form)
+                  .filter(
+                    ([key]) =>
+                      ![
+                        "exampleSituation",
+                        "exampleUser",
+                        "exampleReply",
+                      ].includes(key),
+                  )
+                  .map(([key, value]) => (
+                    <div key={key}>
+                      <dt>
+                        {
+                          (
+                            {
+                              name: "Nom",
+                              gender: "Genre",
+                              pronouns: "Pronoms",
+                              description: "Présentation",
+                              appearance: "Apparence physique",
+                              personality: "Personnalité",
+                              values: "Valeurs",
+                              motivations: "Motivations",
+                              tone: "Ton",
+                              humor: "Humour",
+                              responseLength: "Longueur des réponses",
+                              boundaries: "Limites",
+                              examples: "Exemples de dialogue",
+                            } as Record<string, string>
+                          )[key]
+                        }
+                      </dt>
+                      <dd className="preserve">
+                        {Array.isArray(value)
+                          ? value
+                              .map(
+                                (item, index) =>
+                                  `Exemple ${index + 1}\nSituation : ${item.situation}\nPersona : ${item.user}\nPersonnage : ${item.reply}`,
+                              )
+                              .join("\n\n")
+                          : value || "Non renseigné"}
+                      </dd>
+                    </div>
+                  ))}
+              </dl>
+              <button
+                type="button"
+                disabled={busy || mediaBusy || mediaDirty}
+                onClick={() => {
+                  setForm(preview.form);
+                  setNotice(
+                    `Version ${preview.version} chargée dans le formulaire. Enregistre la fiche pour confirmer la restauration.`,
+                  );
+                  setPreview(null);
+                }}
+              >
+                Restaurer cette version dans le formulaire
+              </button>
+              <button
+                type="button"
+                className="text-button"
+                onClick={() => setPreview(null)}
+              >
+                Fermer
+              </button>
+            </section>
           )}
         </>
       ) : (
