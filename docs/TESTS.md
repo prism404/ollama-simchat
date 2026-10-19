@@ -297,3 +297,8 @@ Parcours local : arrêter les serveurs, récupérer main et lancer `npm run db:i
 - Chromium sur base temporaire : trois images préparées avant création, avatar choisi et cadré ; panne simulée au deuxième import puis reprise sans doublon ; analyse vision simulée remplissant l’apparence ; rechargement conservant galerie et cadrage ; avatar affiché sur le message du persona, mobile 390 px sans débordement et aucune erreur JavaScript. Aucun Ollama réel utilisé pour cette vérification.
 
 Parcours local : arrêter les serveurs, récupérer main puis lancer `npm run db:init`. Dans Personas, choisir sa fiche, ajouter ses images, choisir l’avatar et régler le cadrage avant Enregistrer mon persona. Les fichiers restent locaux ; l’analyse visuelle est déclenchée uniquement par son bouton. La description générée reste un brouillon à relire et enregistrer. Les images ne sont pas envoyées automatiquement dans les conversations.
+
+## Choix visuel du persona — 19 octobre 2026
+
+- `format:check`, `typecheck` et `web:build` réussis ; interface uniquement, sans migration.
+- Chromium sur base temporaire : avatar avec cadrage conservé, initiale sans image, sélection unique et présélection initiale ; option créer un persona et retour à une fiche existante ; création d’histoire transmettant l’identifiant du persona sélectionné. Écran 390 px sans débordement et aucune erreur JavaScript.

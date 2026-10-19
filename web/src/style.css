@@ -1133,3 +1133,70 @@ main {
   flex: 0 0 42px;
   border-radius: 12px;
 }
+.character-form .story-persona-picker {
+  margin: 0 0 22px;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+.character-form .story-persona-picker > legend {
+  font: inherit;
+  padding: 0;
+  margin-bottom: 10px;
+}
+.story-persona-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+  gap: 12px;
+}
+.story-persona-choice {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid #dfe3d8;
+  border-radius: 12px;
+  background: #fff;
+  cursor: pointer;
+  min-width: 0;
+}
+.story-persona-choice:has(input:checked) {
+  border-color: #54745e;
+  background: #eef3e8;
+  box-shadow: 0 0 0 1px #54745e;
+}
+.story-persona-choice:has(input:focus-visible) {
+  outline: 2px solid #54745e;
+  outline-offset: 3px;
+}
+.story-persona-choice:has(input:disabled) {
+  cursor: default;
+  opacity: 0.65;
+}
+.story-persona-choice input[type="radio"] {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  margin: 0;
+  accent-color: #345548;
+}
+.story-persona-avatar {
+  width: 72px;
+  height: 72px;
+  flex: 0 0 72px;
+  border-radius: 14px;
+}
+.story-persona-choice > span:last-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.story-persona-choice strong,
+.story-persona-choice small {
+  display: block;
+}
+.story-persona-choice small {
+  font-size: 12px;
+  font-weight: 400;
+  color: #77816f;
+  margin-top: 5px;
+}

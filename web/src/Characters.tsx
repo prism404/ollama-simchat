@@ -36,6 +36,13 @@ type Character = {
   lastMessageAt: string | null;
   lastConversationId: number | null;
 };
+type StoryPersona = {
+  id: number;
+  name: string;
+  avatarUrl?: string | null;
+  avatarCrop?: AvatarCrop;
+  isDefault?: number;
+};
 type Detail = {
   id: number;
   version: number;
@@ -103,7 +110,7 @@ export function Characters({
   const gallery = useRef<GalleryHandle>(null);
   const [mediaBusy, setMediaBusy] = useState(false);
   const [mediaDirty, setMediaDirty] = useState(false);
-  const [personas, setPersonas] = useState<{ id: number; name: string }[]>([]);
+  const [personas, setPersonas] = useState<StoryPersona[]>([]);
   const [persona, setPersona] = useState("new");
   const [story, setStory] = useState({
     title: "",
@@ -149,9 +156,7 @@ export function Characters({
     setBusy(true);
     setError("");
     try {
-      const data = await request<{ personas: { id: number; name: string }[] }>(
-        "/api/personas",
-      );
+      const data = await request<{ personas: StoryPersona[] }>("/api/personas");
       setPersonas(data.personas);
       setPersona(data.personas[0] ? String(data.personas[0].id) : "new");
       setStory({
@@ -886,20 +891,59 @@ Ce qui peut le faire évoluer : …`,
                   }
                 />
               </label>
-              <label className="character-field">
-                Ton persona
-                <select
-                  value={persona}
-                  onChange={(e) => setPersona(e.target.value)}
-                >
+              <fieldset className="story-persona-picker">
+                <legend>Ton persona</legend>
+                <div className="story-persona-options">
                   {personas.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name}
-                    </option>
+                    <label className="story-persona-choice" key={p.id}>
+                      <input
+                        type="radio"
+                        name="story-persona"
+                        aria-label={p.name}
+                        value={p.id}
+                        checked={persona === String(p.id)}
+                        onChange={() => setPersona(String(p.id))}
+                      />
+                      <Avatar
+                        src={p.avatarUrl}
+                        name={p.name}
+                        crop={p.avatarCrop}
+                        className="story-persona-avatar"
+                      />
+                      <span>
+                        <strong>{p.name}</strong>
+                        <small>
+                          {persona === String(p.id)
+                            ? "Sélectionné"
+                            : p.isDefault
+                              ? "Par défaut"
+                              : "Choisir ce persona"}
+                        </small>
+                      </span>
+                    </label>
                   ))}
-                  <option value="new">Créer un persona</option>
-                </select>
-              </label>
+                  <label className="story-persona-choice">
+                    <input
+                      type="radio"
+                      name="story-persona"
+                      aria-label="Créer un persona"
+                      value="new"
+                      checked={persona === "new"}
+                      onChange={() => setPersona("new")}
+                    />
+                    <span
+                      className="story-persona-avatar avatar-fallback"
+                      aria-hidden="true"
+                    >
+                      +
+                    </span>
+                    <span>
+                      <strong>Créer un persona</strong>
+                      <small>Une nouvelle fiche pour cette histoire</small>
+                    </span>
+                  </label>
+                </div>
+              </fieldset>
               {persona === "new" && (
                 <label className="character-field">
                   Nom de ton persona *
@@ -928,7 +972,7 @@ Ce qui peut le faire évoluer : …`,
                 </label>
               )}
               <p className="muted">
-                Retrouve et complète tes fiches dans « Mes personas ». Les
+                Retrouve et complète tes fiches dans « Personas ». Les
                 changements d’un persona s’appliqueront à ses prochaines
                 conversations.
               </p>
