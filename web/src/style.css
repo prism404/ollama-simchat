@@ -1200,3 +1200,9 @@ main {
   color: #77816f;
   margin-top: 5px;
 }
+.story-participants {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 24px 0;
+}

@@ -507,6 +507,13 @@ export function startStory(characterId: number, value: unknown) {
       scene,
       JSON.stringify([characterId]),
     );
+    db.prepare(
+      "INSERT INTO story_setup_versions(story_id,relationship_id,version_number,snapshot_json,reason) VALUES(?,?,1,?,'Création de l’histoire')",
+    ).run(
+      storyId,
+      relationId,
+      JSON.stringify({ title, relationship, initialContext, location, scene }),
+    );
     db.exec("COMMIT");
     return { storyId, conversationId, relationshipId: Number(relationId) };
   } catch (error) {

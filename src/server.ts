@@ -1,3 +1,4 @@
+import { getStory, saveStory } from "./db/story-repository.ts";
 import { archiveCharacter, savePersona } from "./db/profile-management.ts";
 import {
   getCharacterEvolution,
@@ -19,7 +20,7 @@ import {
 } from "./db/character-repository.ts";
 import {
   listConversations,
-  listConversationMessages,
+  listConversationMessagePage,
 } from "./db/web-repository.ts";
 import {
   createServer,
@@ -256,16 +257,67 @@ export function createAppServer(
         }
         return;
       }
+      const storyRoute = url.pathname.match(
+        /^\/api\/conversations\/([^/]+)\/story$/,
+      );
+      if (storyRoute) {
+        try {
+          const id = parsePositiveId(storyRoute[1]);
+          if (request.method === "GET") sendJson(response, 200, getStory(id));
+          else if (request.method === "POST") {
+            let body: unknown;
+            try {
+              body = await readJsonBody(request);
+            } catch {
+              throw new MemoryWorkflowError(400, "Objet JSON invalide.");
+            }
+            sendJson(response, 200, saveStory(id, body));
+          } else sendJson(response, 405, { error: "Méthode non autorisée." });
+        } catch (error) {
+          sendJson(
+            response,
+            error instanceof MemoryWorkflowError ? error.status : 500,
+            {
+              error:
+                error instanceof MemoryWorkflowError
+                  ? error.message
+                  : "Impossible de charger ou enregistrer cette histoire.",
+            },
+          );
+        }
+        return;
+      }
       const historyRoute = url.pathname.match(
         /^\/api\/conversations\/([^/]+)\/messages$/,
       );
       if (request.method === "GET" && historyRoute) {
         try {
-          sendJson(response, 200, {
-            messages: listConversationMessages(
+          if (
+            [...url.searchParams.keys()].some(
+              (key) =>
+                !["limit", "beforeSequence"].includes(key) ||
+                url.searchParams.getAll(key).length !== 1,
+            )
+          )
+            throw new MemoryWorkflowError(
+              400,
+              "Paramètres de pagination invalides.",
+            );
+          const limit = url.searchParams.has("limit")
+            ? parsePositiveId(url.searchParams.get("limit")!)
+            : 50;
+          const before = url.searchParams.has("beforeSequence")
+            ? parsePositiveId(url.searchParams.get("beforeSequence")!)
+            : undefined;
+          sendJson(
+            response,
+            200,
+            listConversationMessagePage(
               parsePositiveId(historyRoute[1]),
+              limit,
+              before,
             ),
-          });
+          );
         } catch (error) {
           sendJson(
             response,

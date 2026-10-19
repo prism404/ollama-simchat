@@ -1,3 +1,4 @@
+import { CharacterStories } from "./StoryEditor";
 import { createPortal } from "react-dom";
 import { Avatar, type AvatarCrop } from "./Avatar";
 import { CharacterEvolution } from "./CharacterEvolution";
@@ -88,7 +89,9 @@ export function Characters({
   initialCharacterId = null,
   onChanged,
   headerActions,
+  onStory,
 }: {
+  onStory?: (conversationId: number) => void;
   headerActions?: HTMLElement | null;
   initialCharacterId?: number | null;
   onChanged?: () => Promise<void>;
@@ -500,6 +503,18 @@ export function Characters({
             >
               Voir son évolution
             </button>
+          )}
+          {detail && onStory && (
+            <CharacterStories
+              characterId={detail.id}
+              onOpen={onStory}
+              disabled={
+                busy ||
+                mediaBusy ||
+                mediaDirty ||
+                JSON.stringify(form) !== JSON.stringify(detail.form)
+              }
+            />
           )}
           <form
             onSubmit={(e) => {

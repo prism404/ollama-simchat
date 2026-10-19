@@ -7,6 +7,10 @@ proposé = idée non encore engagée. Les priorités proposées restent à arbit
 
 ## Livré
 
+- F36 : accès Histoire depuis la fiche du personnage, le chat et sa navigation ; point de départ consultable, modifiable et restaurable avec versions conservées, sans réécriture des messages.
+- F37 : suivi actuel par histoire (lieu, situation, atmosphère, récapitulatif manuel versionné) transmis au prompt ; ouverture historique distincte de la scène actuelle.
+- F38 : longues conversations chargées par pages de 50, curseur stable et chargement des messages précédents ; messages déjà chargés conservés après streaming.
+
 - F35 : choix du persona au départ d’une histoire par cartes avec avatar cadré, nom et sélection explicite ; initiale sans image et création de persona conservée.
 
 - F34 : galerie et avatar du persona dans sa fiche, import avant création, cadrage position/zoom, description visuelle explicite et avatar dans la messagerie ; migration v5 non destructive, reprise des imports partiels et galeries isolées.
@@ -71,7 +75,7 @@ proposé = idée non encore engagée. Les priorités proposées restent à arbit
 | P05 | À définir | Statistiques de rappel | Définir quand comptabiliser une utilisation avant d'écrire `recall_count`/`last_recalled_at` |
 | P10 | À définir | Génération d’images fidèle au personnage | Choisir le moteur, ses références d’identité et le passage conversation → scène visuelle ; aucune intégration IA image actuellement |
 | P06 | À définir | Embeddings et recherche hybride | Comparer la qualité à FTS + fallback sur des scénarios reproductibles |
-| P07 | À définir | Synthèses et contradictions | Propositions révisables et historique conservé |
+| P07 | À définir | Synthèses automatiques et contradictions | Récapitulatif manuel versionné livré ; propositions IA à définir avec preuves et validation |
 | P08 | À définir | Propositions automatiques d’évolution | V1 manuelle livrée ; définir les preuves, contradictions et validation avant toute synthèse IA |
 | P09 | À définir | Souvenirs persona transversaux | Réévaluer explicitement les règles d'isolation avant tout assouplissement |
 

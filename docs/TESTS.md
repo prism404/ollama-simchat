@@ -8,10 +8,10 @@ sont pas attribuées lorsque seul l'ordre des échanges est connu.
 
 | Commande | Dernier résultat observé | Contexte |
 | --- | --- | --- |
-| `npm run test:memory` | 62 réussis dans Codex ; dernière exécution Windows partagée : 31 réussis | Bases temporaires, sans Ollama |
+| `npm run test:memory` | 67 réussis dans Codex ; dernière exécution Windows partagée : 31 réussis | Bases temporaires, sans Ollama |
 | `npm run format:check` | Réussi après correctif des fins de ligne | Codex et Windows |
 | `npm run typecheck` | Réussi | Codex et Windows |
-| `npm run db:check` | Codex : version 5, intégrité `ok`, zéro erreur, 40 tables/vues ; dernière preuve Windows : version 2 | Bases distinctes |
+| `npm run db:check` | Codex : version 6, intégrité `ok`, zéro erreur, 41 tables/vues ; dernière preuve Windows : version 2 | Bases distinctes |
 | `npm run chat:prompt -- 1` | Identifiants `[1]`, souvenir présent dans le system prompt | Base Windows de l'utilisatrice |
 
 Ces résultats décrivent les versions testées, pas une garantie automatique sur les
@@ -302,3 +302,11 @@ Parcours local : arrêter les serveurs, récupérer main puis lancer `npm run db
 
 - `format:check`, `typecheck` et `web:build` réussis ; interface uniquement, sans migration.
 - Chromium sur base temporaire : avatar avec cadrage conservé, initiale sans image, sélection unique et présélection initiale ; option créer un persona et retour à une fiche existante ; création d’histoire transmettant l’identifiant du persona sélectionné. Écran 390 px sans débordement et aucune erreur JavaScript.
+
+## Histoire modifiable et longs échanges — 19 octobre 2026
+
+- 67 tests passent. Nouveaux scénarios : versions du point de départ, correction/restauration sans modifier les messages ni une autre histoire ; récapitulatif conservé au-delà des 12 échanges récents ; scènes versionnées et suivi indépendant ; validation stricte, conflits 409 et annulation des écritures sur échec SQL ; pagination d’une archive de 501 messages avec correction, arrivée d’un nouveau message entre deux pages, absence de doublons et conservation de l’archive.
+- Migration v5 → v6 répétable : première scène récupérée comme point de départ, dernière scène et messages conservés. Les migrations depuis v1/v2/v4 passent aussi. `db:init`, `db:check`, `format:check`, `typecheck` et `web:build` réussis : schéma 6, intégrité ok, zéro erreur de clé étrangère, 41 tables/vues.
+- Chromium sur base temporaire : accès depuis une fiche puis depuis le chat ; correction, restauration en nouvelle version et conservation du brouillon de l’autre section ; suivi actuel conservé. Archive de 250 messages : 50 affichés initialement, 100 après chargement précédent, puis 102 après envoi et réponse simulée sans perdre les messages chargés. Écran 390 px sans débordement et aucune erreur JavaScript. Aucun appel Ollama réel dans ce parcours.
+
+Parcours local : arrêter les serveurs, récupérer main puis `npm run db:init`. Ouvrir une fiche → Histoires de ce personnage → Histoire, ou le bouton Histoire du chat. Corriger le point de départ et enregistrer. Renseigner lieu actuel et récapitulatif, enregistrer le suivi, vérifier les deux historiques. Recharger une version ne l’applique qu’après enregistrement et crée une nouvelle version. L’archive reste consultable avec Afficher les messages précédents. Le récapitulatif est manuel ; l’archive complète n’est pas automatiquement envoyée au modèle.

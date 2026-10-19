@@ -438,7 +438,7 @@ test("le choix de modèle est transmis et les en-têtes du stream arrivent avant
   }
 });
 
-test("migration v2 → v5 répétable : avatar et anciennes données conservés", async () => {
+test("migration v2 → v6 répétable : avatar et anciennes données conservés", async () => {
   const { DatabaseSync } = await import("node:sqlite");
   const { readFileSync } = await import("node:fs");
   const { migrateDatabase } = await import("../db/migrations.ts");
@@ -475,7 +475,7 @@ test("migration v2 → v5 répétable : avatar et anciennes données conservés"
       legacy
         .prepare("SELECT value FROM app_meta WHERE key = 'schema_version'")
         .get()?.value,
-      "5",
+      "6",
     );
     assert.equal(
       legacy.prepare("SELECT COUNT(*) AS n FROM character_images").get()?.n,
@@ -1371,7 +1371,7 @@ test("galerie persona : quota, formats, identifiants et annulation d’une écri
   );
 });
 
-test("migration v4 → v5 : personas, préférences et images de personnages conservés", async () => {
+test("migration v4 → v6 : personas, préférences et images de personnages conservés", async () => {
   const { DatabaseSync } = await import("node:sqlite");
   const { readFileSync } = await import("node:fs");
   const { migrateDatabase } = await import("../db/migrations.ts");
@@ -1422,7 +1422,7 @@ test("migration v4 → v5 : personas, préférences et images de personnages con
       legacy
         .prepare("SELECT value FROM app_meta WHERE key='schema_version'")
         .get()?.value,
-      "5",
+      "6",
     );
     assert.equal(
       legacy.prepare("SELECT COUNT(*) AS n FROM persona_images").get()?.n,

@@ -58,8 +58,7 @@ Les tables préparent déjà plusieurs usages futurs, mais leur présence ne sig
 pas que les workflows correspondants sont implémentés : embeddings, synthèses,
 contradictions et propositions automatiques d’évolution restent à définir ou à développer.
 L’interface permet désormais de créer et modifier les personnages, puis de
-commencer une histoire avec un persona existant ou nouveau. L’édition d’une
-histoire déjà commencée reste hors de ce premier parcours. Voir le [backlog](BACKLOG.md).
+commencer une histoire avec un persona existant ou nouveau. L’histoire déjà commencée peut être consultée et corrigée, avec versions du point de départ et du suivi actuel conservées. Voir le [backlog](BACKLOG.md).
 
 ## Règles de travail
 
@@ -101,3 +100,13 @@ La description existante reste conservée dans Présentation générale. Le prof
 Chaque persona peut conserver jusqu’à 20 images PNG/JPEG/WebP de 5 Mo maximum chacune et choisir l’une d’elles comme avatar, avec position et zoom. La même galerie que pour les personnages est réutilisée ; l’avatar apparaît dans la sélection du persona et sur ses messages. Les médias sont séparés par type de fiche et propriétaire.
 
 La migration v5 ajoute persona_images ainsi que les colonnes d’avatar des personas ; elle conserve les textes, préférences, histoires et images existantes. Une analyse explicite peut proposer l’apparence à partir de dix références au maximum. Le chat reçoit le texte enregistré, sans les images.
+
+## Histoires longues et continuité
+
+Une histoire peut porter un long échange sans être remplacée par de nouvelles histoires techniques. Le chat ouvre les 50 derniers messages et propose de charger les pages antérieures. Les sources restent en SQLite ; le curseur de pagination est la séquence du message, et non un décalage instable. Les messages chargés restent visibles après une réponse en streaming.
+
+L’accès Histoire est disponible depuis la fiche du personnage et depuis la conversation. Il sépare le point de départ (titre, relation initiale, passé commun, lieu et scène d’ouverture) du suivi actuel (lieu, situation, atmosphère, récapitulatif manuel). Chaque section conserve ses versions ; une restauration passe par un brouillon et un nouvel enregistrement. Une version concurrente produit une erreur explicite plutôt qu’une réécriture silencieuse.
+
+Le modèle reçoit les 12 messages récents, les souvenirs validés sélectionnés, le contexte et le récapitulatif enregistré de cette histoire. La scène initiale ne doit pas être rejouée quand le dialogue a progressé. Le récapitulatif doit être maintenu par l’utilisatrice aux moments importants ; aucune synthèse automatique n’est ajoutée. Le récit ne garantit pas un rappel parfait de tous les anciens détails.
+
+La migration v6 conserve le contexte préexistant dans story_setup_versions. Le suivi réutilise scene_state_versions ; aucun message, souvenir ou document de personnage n’est supprimé.

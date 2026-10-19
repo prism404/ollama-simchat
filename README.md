@@ -434,3 +434,15 @@ Dans **Personas**, chaque fiche comporte identité et apparence, passé établi,
 ### Images et avatar du persona
 
 Après récupération de cette version, arrêter les serveurs et lancer `npm run db:init` pour appliquer la migration v5 sans supprimer les données. Dans **Personas → Présentation**, ajouter des images (PNG/JPEG/WebP, 5 Mo chacune, 20 maximum), choisir l’avatar, régler le cadrage et enregistrer le persona. L’avatar apparaît aussi dans la messagerie. Les références peuvent servir à une description d’apparence via le bouton d’analyse vision ; elles ne sont jamais ajoutées automatiquement au prompt du chat.
+
+### Modifier une histoire et poursuivre de longs échanges
+
+Après mise à jour : arrêter les serveurs, récupérer main puis lancer `npm run db:init` (migration v6 non destructive). Depuis une fiche, ouvrir **Histoires de ce personnage** ; depuis le chat, utiliser **Histoire** ou **Histoire et continuité** dans le menu.
+
+Le point de départ et le suivi actuel disposent de leurs propres formulaires et historiques. Recharger une ancienne version remplit le brouillon ; enregistrer crée une nouvelle version. Les messages restent intacts. Le persona de l’histoire reste inchangé : changer de persona constitue une autre histoire.
+
+Pour les longs récits, mettre à jour le récapitulatif de continuité aux moments importants : faits joués, décisions, promesses et questions ouvertes. Il accompagne les prochaines réponses avec les 12 derniers messages et les souvenirs validés sélectionnés. Il est manuel ; le modèle ne reçoit pas l’archive complète à chaque tour.
+
+`GET /api/conversations/:id/messages` renvoie désormais `{ messages, hasMore, nextBeforeSequence }`, les 50 derniers messages dans l’ordre chronologique. `?limit=1..100&beforeSequence=N` permet de lire les pages précédentes. Le chat les charge à la demande et conserve celles déjà affichées après un envoi.
+
+`GET /api/conversations/:id/story` lit les deux historiques. `POST` enregistre une section avec `section: "setup" | "current"`, `expectedVersion` et tous ses champs. Une version dépassée renvoie 409 ; les écritures de contexte et d’historique sont transactionnelles.

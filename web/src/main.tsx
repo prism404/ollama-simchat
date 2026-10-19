@@ -1,7 +1,14 @@
+import { StoryEditor } from "./StoryEditor";
 import { Avatar, type AvatarCrop } from "./Avatar";
 import { Personas } from "./Personas";
 import { Characters } from "./Characters";
-import { StrictMode, useEffect, useRef, useState } from "react";
+import {
+  StrictMode,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import { createRoot } from "react-dom/client";
 import "./style.css";
 
@@ -20,9 +27,15 @@ type Message = {
   id: number;
   senderType: string;
   content: string;
+  sequenceNumber?: number;
   authorName?: string | null;
   avatarUrl?: string | null;
   avatarCrop?: AvatarCrop;
+};
+type MessagePage = {
+  messages: Message[];
+  hasMore: boolean;
+  nextBeforeSequence: number | null;
 };
 type Memory = {
   id: number;
@@ -296,9 +309,23 @@ function App() {
   );
   const [selected, setSelected] = useState<number | null>(null);
   const [tab, setTab] = useState<
-    "chat" | "memories" | "characters" | "personas"
+    "chat" | "memories" | "characters" | "personas" | "story"
   >("characters");
   const [messages, setMessages] = useState<Message[]>([]);
+  const [olderCursor, setOlderCursor] = useState<number | null>(null),
+    [olderLoading, setOlderLoading] = useState(false);
+  const olderAnchor = useRef<{ height: number; scrollTop: number } | null>(
+    null,
+  );
+  function mergeRecent(history: MessagePage) {
+    setMessages((previous) => {
+      const min = history.messages[0]?.sequenceNumber ?? Infinity;
+      return [
+        ...previous.filter((m) => m.id > 0 && (m.sequenceNumber ?? 0) < min),
+        ...history.messages,
+      ];
+    });
+  }
   const [memories, setMemories] = useState<Memory[]>([]);
   const [filter, setFilter] = useState("pending");
   const [health, setHealth] = useState<Health | null>(null);
@@ -357,7 +384,7 @@ function App() {
     setCharacters(data.characters);
   }
   const pending = memories.filter((m) => m.status === "pending").length;
-  const locked = !!busy || loading;
+  const locked = !!busy || loading || olderLoading;
   async function checkHealth() {
     try {
       setHealth(await api<Health>("/api/health"));
@@ -413,9 +440,11 @@ function App() {
     setNotice("");
     setDraft("");
     setMessages([]);
+    setOlderCursor(null);
+    olderAnchor.current = null;
     setMemories([]);
     void Promise.all([
-      api<{ messages: Message[] }>(`/api/conversations/${selected}/messages`, {
+      api<MessagePage>(`/api/conversations/${selected}/messages`, {
         signal: controller.signal,
       }),
       api<{ memories: Memory[] }>(`/api/conversations/${selected}/memories`, {
@@ -424,7 +453,8 @@ function App() {
     ])
       .then(([history, stored]) => {
         if (controller.signal.aborted) return;
-        setMessages(history.messages);
+        mergeRecent(history);
+        setOlderCursor(history.nextBeforeSequence);
         setMemories(stored.memories);
       })
       .catch((e) => {
@@ -435,12 +465,48 @@ function App() {
       });
     return () => controller.abort();
   }, [selected]);
-  useEffect(() => {
+  useLayoutEffect(() => {
+    if (olderAnchor.current) {
+      const anchor = olderAnchor.current;
+      olderAnchor.current = null;
+      window.scrollTo({
+        top:
+          anchor.scrollTop +
+          document.documentElement.scrollHeight -
+          anchor.height,
+        behavior: "instant",
+      });
+      return;
+    }
     end.current?.scrollIntoView({
       block: "end",
       behavior: busy ? "instant" : "smooth",
     });
   }, [messages, tab]);
+  async function loadOlder() {
+    if (locked || selected === null || olderCursor === null) return;
+    const conversationId = selected;
+    setOlderLoading(true);
+    setError("");
+    try {
+      const page = await api<MessagePage>(
+        `/api/conversations/${conversationId}/messages?beforeSequence=${olderCursor}`,
+      );
+      olderAnchor.current = {
+        height: document.documentElement.scrollHeight,
+        scrollTop: window.scrollY,
+      };
+      setMessages((previous) => {
+        const ids = new Set(previous.map((m) => m.id));
+        return [...page.messages.filter((m) => !ids.has(m.id)), ...previous];
+      });
+      setOlderCursor(page.nextBeforeSequence);
+    } catch (error) {
+      setError((error as Error).message);
+    } finally {
+      setOlderLoading(false);
+    }
+  }
   async function refreshMemories() {
     const data = await api<{ memories: Memory[] }>(
       `/api/conversations/${selected}/memories`,
@@ -501,20 +567,20 @@ function App() {
       } finally {
         reader.releaseLock();
       }
-      const history = await api<{ messages: Message[] }>(
+      const history = await api<MessagePage>(
         `/api/conversations/${selected}/messages`,
       );
-      setMessages(history.messages);
+      mergeRecent(history);
     } catch (e) {
       setError(
         `${(e as Error).message} Vérifie Ollama avant de réessayer. Le message peut déjà avoir été enregistré.`,
       );
       setDraft(text);
       try {
-        const history = await api<{ messages: Message[] }>(
+        const history = await api<MessagePage>(
           `/api/conversations/${selected}/messages`,
         );
-        setMessages(history.messages);
+        mergeRecent(history);
       } catch {
         setNotice(
           "Historique indisponible. Actualise la page avant de renvoyer le message.",
@@ -634,6 +700,13 @@ function App() {
         </nav>
         {selectedCharacter !== null && characterStories.length > 0 && (
           <div className="character-tools">
+            <button
+              className="text-button"
+              disabled={locked}
+              onClick={() => setTab("story")}
+            >
+              Histoire et continuité
+            </button>
             {characterStories.length > 1 && (
               <label className="conversation-picker">
                 HISTOIRE
@@ -715,10 +788,23 @@ function App() {
                   ? "Mes personas"
                   : tab === "characters"
                     ? "Les personnages"
-                    : "Les souvenirs"}
+                    : tab === "story"
+                      ? "L’histoire"
+                      : "Les souvenirs"}
             </h1>
           </div>
-          <div className="header-actions" ref={setHeaderActions} />
+          <div className="header-actions">
+            {selected && (tab === "chat" || tab === "memories") && (
+              <button
+                className="secondary"
+                disabled={locked}
+                onClick={() => setTab("story")}
+              >
+                Histoire
+              </button>
+            )}
+            <div ref={setHeaderActions} />
+          </div>
         </header>
         <div className="feedback" aria-live="polite">
           {error && (
@@ -735,7 +821,19 @@ function App() {
             </div>
           )}
         </div>
-        {tab === "personas" ? (
+        {tab === "story" && selected ? (
+          <StoryEditor
+            key={selected}
+            conversationId={selected}
+            onBack={() => setTab("chat")}
+            onChanged={async () => {
+              const data = await api<{ conversations: Conversation[] }>(
+                "/api/conversations",
+              );
+              setConversations(data.conversations);
+            }}
+          />
+        ) : tab === "personas" ? (
           <Personas
             onChanged={async () => {
               const data = await api<{ conversations: Conversation[] }>(
@@ -748,6 +846,14 @@ function App() {
           <Characters
             key={selectedCharacter ?? "directory"}
             initialCharacterId={selectedCharacter}
+            onStory={(id) => {
+              setSelected(id);
+              setSelectedCharacter(
+                conversations.find((c) => c.id === id)?.characterId ??
+                  selectedCharacter,
+              );
+              setTab("story");
+            }}
             headerActions={headerActions}
             onChanged={refreshCharacters}
             onStarted={async (id) => {
@@ -793,6 +899,18 @@ function App() {
                   </h2>
                   <p>Un bonjour, une question, le début d’une scène.</p>
                 </div>
+              )}
+              {olderCursor !== null && (
+                <button
+                  type="button"
+                  className="secondary older-messages"
+                  disabled={locked}
+                  onClick={() => void loadOlder()}
+                >
+                  {olderLoading
+                    ? "Chargement…"
+                    : "Afficher les messages précédents"}
+                </button>
               )}
               {messages.map((m) => (
                 <article key={m.id} className={`message ${m.senderType}`}>

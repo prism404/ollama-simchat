@@ -45,6 +45,8 @@ type ConversationRow = {
   story_datetime: string | null;
   current_action: string | null;
   atmosphere: string | null;
+  scene_state_json: string;
+  scene_version: number;
 };
 
 type DialogueExampleRow = {
@@ -122,7 +124,7 @@ export function loadConversationContext(
         scene.location AS scene_location,
         scene.story_datetime,
         scene.current_action,
-        scene.atmosphere
+        scene.atmosphere, scene.state_json AS scene_state_json, scene.version_number AS scene_version
 
       FROM conversations AS conv
 
@@ -245,6 +247,14 @@ export function loadConversationContext(
         conversation.character_id,
         conversation.relationship_id,
       );
+    const opening = db
+      .prepare(
+        "SELECT snapshot_json FROM story_setup_versions WHERE story_id=? AND relationship_id=? ORDER BY version_number DESC LIMIT 1",
+      )
+      .get(conversation.story_id, conversation.relationship_id);
+    const openingData = opening
+      ? (parseJson(String(opening.snapshot_json)) as Record<string, unknown>)
+      : {};
     const personaPreferences = parseJson(conversation.preferences_json);
     const preferenceRecord =
       personaPreferences &&
@@ -275,6 +285,10 @@ export function loadConversationContext(
         description: conversation.story_description,
         worldRules: parseJson(conversation.world_rules_json),
         tone: parseJson(conversation.tone_json),
+        opening: {
+          location: String(openingData.location ?? ""),
+          scene: String(openingData.scene ?? ""),
+        },
       },
 
       persona: {
@@ -314,10 +328,24 @@ export function loadConversationContext(
       },
 
       scene: {
-        location: conversation.scene_location ?? "",
+        location:
+          recentMessages.length === 0 && conversation.scene_version === 1
+            ? String(openingData.location ?? conversation.scene_location ?? "")
+            : (conversation.scene_location ?? ""),
         storyDatetime: conversation.story_datetime ?? "",
-        currentAction: conversation.current_action ?? "",
+        currentAction:
+          recentMessages.length === 0 && conversation.scene_version === 1
+            ? String(openingData.scene ?? conversation.current_action ?? "")
+            : (conversation.current_action ?? ""),
         atmosphere: conversation.atmosphere ?? "",
+        summary: String(
+          (
+            parseJson(conversation.scene_state_json ?? "{}") as Record<
+              string,
+              unknown
+            >
+          )?.continuitySummary ?? "",
+        ),
       },
 
       dialogueExamples,

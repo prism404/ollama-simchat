@@ -171,13 +171,16 @@ ${formatData(context.character.core.behaviorRules)}
 Faits immuables :
 ${formatData(context.character.core.immutableFacts)}
 
-RELATION ACTUELLE
+RELATION — CONTEXTE INITIAL
 
-Nature de la relation :
+Nature de la relation au départ :
 ${context.relationship.label || "Non renseignée"}
 
 Contexte initial :
 ${context.relationship.initialContext || "Non renseigné"}
+
+Scène d’ouverture (repère historique ; ne pas la rejouer après le début des échanges) :
+${formatData(context.story.opening)}
 
 ${
   context.evolution
@@ -189,6 +192,11 @@ ${formatData(context.evolution)}
     : ""
 }
 SCÈNE ACTUELLE
+
+Ces repères sont le dernier état enregistré manuellement. Les échanges récents peuvent les avoir fait évoluer : poursuis leur continuité sans relancer la scène d’ouverture ni imposer les émotions initiales. Un récapitulatif validé conserve les événements anciens ; il ne remplace pas les décisions de la joueuse.
+
+Récapitulatif de continuité validé :
+${context.scene.summary || "Non renseigné"}
 
 Lieu :
 ${context.scene.location || "Non renseigné"}

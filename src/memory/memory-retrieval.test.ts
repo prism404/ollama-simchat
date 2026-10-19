@@ -248,7 +248,7 @@ test("section absente sans souvenir pertinent et contexte existant conservé", (
     "HISTOIRE",
     "PERSONA HUMAIN",
     "PERSONNAGE INCARNÉ",
-    "RELATION ACTUELLE",
+    "RELATION — CONTEXTE INITIAL",
     "SCÈNE ACTUELLE",
     "CONSIGNES DE STYLE",
   ])

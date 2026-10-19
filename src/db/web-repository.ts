@@ -37,7 +37,19 @@ export function listConversations() {
   }
 }
 
-export function listConversationMessages(conversationId: number) {
+export function listConversationMessagePage(
+  conversationId: number,
+  limit = 50,
+  beforeSequence?: number,
+) {
+  if (
+    !Number.isSafeInteger(limit) ||
+    limit < 1 ||
+    limit > 100 ||
+    (beforeSequence !== undefined &&
+      (!Number.isSafeInteger(beforeSequence) || beforeSequence < 1))
+  )
+    throw new MemoryWorkflowError(400, "Pagination invalide.");
   const db = openDatabase();
   try {
     if (
@@ -47,7 +59,7 @@ export function listConversationMessages(conversationId: number) {
     ) {
       throw new MemoryWorkflowError(404, "Conversation introuvable.");
     }
-    return db
+    const rows = db
       .prepare(
         `SELECT m.id, m.sender_type AS senderType, m.content,
       m.sequence_number AS sequenceNumber,
@@ -55,13 +67,19 @@ export function listConversationMessages(conversationId: number) {
       CASE WHEN m.sender_type='persona' THEN p.avatar_path WHEN m.sender_type='character' THEN c.avatar_path END AS avatarUrl,
       CASE WHEN m.sender_type='persona' THEN p.avatar_crop_json WHEN m.sender_type='character' THEN c.avatar_crop_json END AS avatarCrop
       FROM messages m LEFT JOIN personas p ON p.id=m.persona_id LEFT JOIN characters c ON c.id=m.character_id
-      WHERE m.conversation_id = ? AND NOT EXISTS (
+      WHERE m.conversation_id = ? AND (? IS NULL OR m.sequence_number < ?) AND NOT EXISTS (
         SELECT 1 FROM messages correction WHERE correction.supersedes_message_id = m.id)
-      ORDER BY m.sequence_number, m.id`,
+      ORDER BY m.sequence_number DESC, m.id DESC LIMIT ?`,
       )
-      .all(conversationId)
+      .all(
+        conversationId,
+        beforeSequence ?? null,
+        beforeSequence ?? null,
+        limit + 1,
+      )
       .map((row) => ({
         ...row,
+        sequenceNumber: Number(row.sequenceNumber),
         avatarUrl:
           typeof row.avatarUrl === "string" &&
           /^\/api\/(?:character|persona)-images\/\d+$/.test(row.avatarUrl)
@@ -69,9 +87,20 @@ export function listConversationMessages(conversationId: number) {
             : null,
         avatarCrop: parseCrop(row.avatarCrop),
       }));
+    const hasMore = rows.length > limit;
+    const messages = rows.slice(0, limit).reverse();
+    return {
+      messages,
+      hasMore,
+      nextBeforeSequence: hasMore ? Number(messages[0]?.sequenceNumber) : null,
+    };
   } finally {
     db.close();
   }
+}
+
+export function listConversationMessages(conversationId: number) {
+  return listConversationMessagePage(conversationId).messages;
 }
 
 function parseCrop(value: unknown) {
