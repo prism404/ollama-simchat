@@ -110,3 +110,9 @@ L’accès Histoire est disponible depuis la fiche du personnage et depuis la co
 Le modèle reçoit les 12 messages récents, les souvenirs validés sélectionnés, le contexte et le récapitulatif enregistré de cette histoire. La scène initiale ne doit pas être rejouée quand le dialogue a progressé. Le récapitulatif doit être maintenu par l’utilisatrice aux moments importants ; aucune synthèse automatique n’est ajoutée. Le récit ne garantit pas un rappel parfait de tous les anciens détails.
 
 La migration v6 conserve le contexte préexistant dans story_setup_versions. Le suivi réutilise scene_state_versions ; aucun message, souvenir ou document de personnage n’est supprimé.
+
+## Ouverture des histoires
+
+À l’ouverture d’un chat actif sans aucun message, l’application demande au personnage d’initier la scène à partir du contexte enregistré et de ses souvenirs validés pertinents. La commande technique n’est pas enregistrée comme une parole du persona. Le premier texte character est conservé dans l’historique ; revenir dans une histoire commencée ne la relance pas.
+
+Le texte apparaît en streaming. Une ouverture vide, incomplète ou limitée par la génération n’est pas enregistrée. Le bouton de reprise permet de relancer après une panne. Les lancements simultanés sont bloqués dans le serveur et une transaction SQLite vérifie à nouveau que l’histoire est vide avant l’enregistrement. Aucune migration supplémentaire.

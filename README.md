@@ -446,3 +446,11 @@ Pour les longs récits, mettre à jour le récapitulatif de continuité aux mome
 `GET /api/conversations/:id/messages` renvoie désormais `{ messages, hasMore, nextBeforeSequence }`, les 50 derniers messages dans l’ordre chronologique. `?limit=1..100&beforeSequence=N` permet de lire les pages précédentes. Le chat les charge à la demande et conserve celles déjà affichées après un envoi.
 
 `GET /api/conversations/:id/story` lit les deux historiques. `POST` enregistre une section avec `section: "setup" | "current"`, `expectedVersion` et tous ses champs. Une version dépassée renvoie 409 ; les écritures de contexte et d’historique sont transactionnelles.
+
+### Premier message d’une histoire
+
+Une conversation vide démarre par un message du personnage dès son ouverture dans le chat, y compris pour une histoire déjà créée. Ollama utilise les fiches, le point de départ, la scène et les souvenirs validés pertinents ; la consigne lui demande de laisser les paroles et décisions du persona à la joueuse. Aucune réplique humaine fictive n’est enregistrée.
+
+Le premier message s’affiche en streaming et reste dans l’archive. En cas de panne, **Lancer le premier message** permet de réessayer. Une histoire contenant déjà des messages n’est jamais réinitialisée. Garder Ollama démarré ; le chargement initial du modèle peut prendre du temps.
+
+`POST /api/conversations/:id/opening` accepte `{}` ou `{ "model": "nom-du-modele" }`. Il renvoie le texte en streaming ; un lancement en cours ou une histoire déjà commencée renvoie 409. Aucun changement de schéma.

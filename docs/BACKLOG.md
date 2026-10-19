@@ -7,6 +7,8 @@ proposé = idée non encore engagée. Les priorités proposées restent à arbit
 
 ## Livré
 
+- F39 : ouverture automatique d’une conversation vide par le personnage, fondée sur les fiches et la scène ; streaming, reprise manuelle après panne, aucun faux message du persona, protection contre les doubles lancements et conservation après rechargement.
+
 - F36 : accès Histoire depuis la fiche du personnage, le chat et sa navigation ; point de départ consultable, modifiable et restaurable avec versions conservées, sans réécriture des messages.
 - F37 : suivi actuel par histoire (lieu, situation, atmosphère, récapitulatif manuel versionné) transmis au prompt ; ouverture historique distincte de la scène actuelle.
 - F38 : longues conversations chargées par pages de 50, curseur stable et chargement des messages précédents ; messages déjà chargés conservés après streaming.

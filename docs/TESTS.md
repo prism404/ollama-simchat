@@ -8,7 +8,7 @@ sont pas attribuées lorsque seul l'ordre des échanges est connu.
 
 | Commande | Dernier résultat observé | Contexte |
 | --- | --- | --- |
-| `npm run test:memory` | 67 réussis dans Codex ; dernière exécution Windows partagée : 31 réussis | Bases temporaires, sans Ollama |
+| `npm run test:memory` | 72 réussis dans Codex ; dernière exécution Windows partagée : 31 réussis | Bases temporaires, sans Ollama |
 | `npm run format:check` | Réussi après correctif des fins de ligne | Codex et Windows |
 | `npm run typecheck` | Réussi | Codex et Windows |
 | `npm run db:check` | Codex : version 6, intégrité `ok`, zéro erreur, 41 tables/vues ; dernière preuve Windows : version 2 | Bases distinctes |
@@ -310,3 +310,11 @@ Parcours local : arrêter les serveurs, récupérer main puis lancer `npm run db
 - Chromium sur base temporaire : accès depuis une fiche puis depuis le chat ; correction, restauration en nouvelle version et conservation du brouillon de l’autre section ; suivi actuel conservé. Archive de 250 messages : 50 affichés initialement, 100 après chargement précédent, puis 102 après envoi et réponse simulée sans perdre les messages chargés. Écran 390 px sans débordement et aucune erreur JavaScript. Aucun appel Ollama réel dans ce parcours.
 
 Parcours local : arrêter les serveurs, récupérer main puis `npm run db:init`. Ouvrir une fiche → Histoires de ce personnage → Histoire, ou le bouton Histoire du chat. Corriger le point de départ et enregistrer. Renseigner lieu actuel et récapitulatif, enregistrer le suivi, vérifier les deux historiques. Recharger une version ne l’applique qu’après enregistrement et crée une nouvelle version. L’archive reste consultable avec Afficher les messages précédents. Le récapitulatif est manuel ; l’archive complète n’est pas automatiquement envoyée au modèle.
+
+## Premier message du personnage — 19 octobre 2026
+
+- 72 tests passent. Cinq scénarios ajoutés : contexte et modèle transmis, un seul message character sans fausse parole du persona ; panne/flux vide ou incomplet/limite de génération sans écriture et nouvelle tentative possible ; double lancement et envoi humain simultané refusés ; conflit avec une écriture externe et rollback SQLite ; identifiants, JSON, modèle, méthode, existence et lecture seule validés avant l’appel au modèle.
+- `format:check`, `typecheck`, `web:build` et `db:check` réussis. Schéma inchangé v6, intégrité ok, zéro erreur de clé étrangère.
+- Chromium sur base temporaire avec transport Ollama simulé : ouverture automatique d’une histoire vide déjà créée, panne puis relance manuelle, absence de deuxième ouverture après rechargement ; création d’une nouvelle histoire depuis la fiche et ouverture automatique, aucun message persona fabriqué. Mobile 390 px sans débordement et aucune erreur JavaScript. Le modèle réel reste à vérifier localement.
+
+L’ouverture n’est lancée qu’après lecture réussie de l’historique vide d’une conversation active. Les autres histoires et les conversations déjà commencées restent intactes. Le texte complet est enregistré avant la fin du flux HTTP, avec metadata kind=story_opening. Une erreur de génération laisse l’archive vide et propose Lancer le premier message.

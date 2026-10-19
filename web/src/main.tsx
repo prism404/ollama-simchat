@@ -312,8 +312,10 @@ function App() {
     "chat" | "memories" | "characters" | "personas" | "story"
   >("characters");
   const [messages, setMessages] = useState<Message[]>([]);
+  const [historyReady, setHistoryReady] = useState<number | null>(null);
   const [olderCursor, setOlderCursor] = useState<number | null>(null),
     [olderLoading, setOlderLoading] = useState(false);
+  const openingAttempts = useRef(new Set<number>());
   const olderAnchor = useRef<{ height: number; scrollTop: number } | null>(
     null,
   );
@@ -440,6 +442,7 @@ function App() {
     setNotice("");
     setDraft("");
     setMessages([]);
+    setHistoryReady(null);
     setOlderCursor(null);
     olderAnchor.current = null;
     setMemories([]);
@@ -454,6 +457,7 @@ function App() {
       .then(([history, stored]) => {
         if (controller.signal.aborted) return;
         mergeRecent(history);
+        setHistoryReady(selected);
         setOlderCursor(history.nextBeforeSequence);
         setMemories(stored.memories);
       })
@@ -590,6 +594,110 @@ function App() {
       setBusy("");
     }
   }
+  async function startOpening() {
+    if (
+      locked ||
+      selected === null ||
+      messages.length ||
+      historyReady !== selected ||
+      current?.status !== "active"
+    )
+      return;
+    const conversationId = selected;
+    openingAttempts.current.add(conversationId);
+    setError("");
+    setNotice("");
+    setBusy("Le personnage ouvre la scène…");
+    const openingId = -Date.now();
+    setMessages([{ id: openingId, senderType: "character", content: "" }]);
+    try {
+      const response = await fetch(
+        `/api/conversations/${conversationId}/opening`,
+        post(model ? { model } : {}),
+      );
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Impossible de démarrer l’histoire.");
+      }
+      if (!response.body) throw new Error("Réponse vide du serveur.");
+      const reader = response.body.getReader(),
+        decoder = new TextDecoder();
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          const text = decoder.decode(value, { stream: true });
+          setMessages((previous) =>
+            previous.map((item) =>
+              item.id === openingId
+                ? { ...item, content: item.content + text }
+                : item,
+            ),
+          );
+        }
+        const tail = decoder.decode();
+        if (tail)
+          setMessages((previous) =>
+            previous.map((item) =>
+              item.id === openingId
+                ? { ...item, content: item.content + tail }
+                : item,
+            ),
+          );
+      } finally {
+        reader.releaseLock();
+      }
+      const history = await api<MessagePage>(
+        `/api/conversations/${conversationId}/messages`,
+      );
+      setMessages(history.messages);
+      setOlderCursor(history.nextBeforeSequence);
+      if (!history.messages.length)
+        throw new Error(
+          "L’ouverture n’a pas été enregistrée. Vérifie Ollama puis réessaie.",
+        );
+      await refreshCharacters();
+    } catch (error) {
+      setError((error as Error).message);
+      try {
+        const history = await api<MessagePage>(
+          `/api/conversations/${conversationId}/messages`,
+        );
+        setMessages(history.messages);
+        setOlderCursor(history.nextBeforeSequence);
+      } catch {
+        setMessages([]);
+        setNotice(
+          "Impossible de vérifier l’historique. Actualise la page avant de réessayer.",
+        );
+      }
+    } finally {
+      setBusy("");
+    }
+  }
+  useEffect(() => {
+    if (
+      tab !== "chat" ||
+      selected === null ||
+      loading ||
+      historyReady !== selected ||
+      busy ||
+      messages.length ||
+      current?.status !== "active" ||
+      openingAttempts.current.has(selected)
+    )
+      return;
+    openingAttempts.current.add(selected);
+    void startOpening();
+  }, [
+    tab,
+    selected,
+    loading,
+    historyReady,
+    busy,
+    messages.length,
+    current?.status,
+  ]);
   async function propose() {
     if (locked || selected === null) return;
     setBusy("Recherche de souvenirs… Cela peut prendre plusieurs minutes.");
@@ -895,9 +1003,21 @@ function App() {
                 <div className="empty">
                   <span className="empty-symbol">↗</span>
                   <h2>
-                    {loading ? "Chargement…" : "Le premier mot est à toi"}
+                    {loading ? "Chargement…" : "Le personnage ouvre l’histoire"}
                   </h2>
-                  <p>Un bonjour, une question, le début d’une scène.</p>
+                  <p>
+                    Le premier message s’appuie sur tes fiches et le point de
+                    départ, sans parler à ta place.
+                  </p>
+                  {!loading && current?.status === "active" && (
+                    <button
+                      type="button"
+                      disabled={locked}
+                      onClick={() => void startOpening()}
+                    >
+                      Lancer le premier message
+                    </button>
+                  )}
                 </div>
               )}
               {olderCursor !== null && (
@@ -933,7 +1053,7 @@ function App() {
                       {m.senderType === "persona"
                         ? m.authorName || current?.personaName || "TOI"
                         : m.senderType === "character"
-                          ? "PERSONNAGE"
+                          ? m.authorName || characterName || "PERSONNAGE"
                           : "NARRATION"}
                     </span>
                   </div>
@@ -977,7 +1097,11 @@ function App() {
               </label>
               <textarea
                 id="message"
-                placeholder="Écris ton message…"
+                placeholder={
+                  messages.length
+                    ? "Écris ton message…"
+                    : "Le personnage prépare l’ouverture de la scène…"
+                }
                 value={draft}
                 rows={3}
                 disabled={locked || current?.status !== "active"}

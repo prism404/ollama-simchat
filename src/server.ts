@@ -1,3 +1,8 @@
+import {
+  assertConversationCanOpen,
+  buildOpeningMessages,
+  saveOpeningMessage,
+} from "./chat/opening.ts";
 import { getStory, saveStory } from "./db/story-repository.ts";
 import { archiveCharacter, savePersona } from "./db/profile-management.ts";
 import {
@@ -70,12 +75,15 @@ type OllamaStreamChunk = {
     content?: string;
   };
   done?: boolean;
+  done_reason?: string;
   error?: string;
 };
 
 async function streamOllamaResponse(
   stream: Awaited<ReturnType<typeof generateReplyStream>>,
   response: ServerResponse,
+  onComplete?: (text: string) => void,
+  requireComplete = false,
 ) {
   response.writeHead(200, {
     "Content-Type": "text/plain; charset=utf-8",
@@ -90,6 +98,7 @@ async function streamOllamaResponse(
 
   let buffer = "";
   let completeResponse = "";
+  let receivedDone = false;
 
   function processLine(line: string) {
     if (!line.trim()) {
@@ -102,6 +111,11 @@ async function streamOllamaResponse(
       throw new Error(chunk.error);
     }
 
+    if (requireComplete && chunk.done_reason === "length")
+      throw new Error(
+        "L’ouverture a été interrompue par la limite du modèle. Réessaie.",
+      );
+    if (chunk.done === true) receivedDone = true;
     const text = chunk.message?.content;
 
     if (text) {
@@ -136,6 +150,9 @@ async function streamOllamaResponse(
       processLine(buffer);
     }
 
+    if (requireComplete && (!receivedDone || !completeResponse.trim()))
+      throw new Error("L’ouverture n’a pas été reçue entièrement. Réessaie.");
+    onComplete?.(completeResponse.trim());
     response.end();
 
     return completeResponse.trim();
@@ -223,6 +240,7 @@ export function createAppServer(
   extractMemories: typeof proposeMemories = proposeMemories,
   streamMessages: typeof generateMessagesStream = generateMessagesStream,
 ) {
+  const openingInFlight = new Set<number>();
   return createServer(
     async (request: IncomingMessage, response: ServerResponse) => {
       if (request.method === "OPTIONS") {
@@ -714,6 +732,92 @@ export function createAppServer(
         return;
       }
 
+      const openingRoute = url.pathname.match(
+        /^\/api\/conversations\/([^/]+)\/opening$/,
+      );
+      if (openingRoute) {
+        let lockedId: number | undefined;
+        try {
+          const id = parsePositiveId(openingRoute[1]);
+          if (request.method !== "POST") {
+            sendJson(response, 405, { error: "Méthode non autorisée." });
+            return;
+          }
+          let body: unknown;
+          try {
+            body = await readJsonBody(request);
+          } catch {
+            throw new MemoryWorkflowError(400, "Objet JSON invalide.");
+          }
+          if (
+            !body ||
+            typeof body !== "object" ||
+            Array.isArray(body) ||
+            Object.keys(body).some((key) => key !== "model")
+          )
+            throw new MemoryWorkflowError(400, "Demande d’ouverture invalide.");
+          const model = (body as { model?: unknown }).model;
+          if (
+            model !== undefined &&
+            (typeof model !== "string" ||
+              !/^[A-Za-z0-9][A-Za-z0-9._:/-]{0,149}$/.test(model))
+          )
+            throw new MemoryWorkflowError(400, "Nom de modèle invalide.");
+          if (openingInFlight.has(id))
+            throw new MemoryWorkflowError(
+              409,
+              "L’ouverture de cette histoire est déjà en cours.",
+            );
+          assertConversationCanOpen(id);
+          openingInFlight.add(id);
+          lockedId = id;
+          let context;
+          try {
+            context = loadConversationContext(id);
+          } catch {
+            throw new MemoryWorkflowError(
+              404,
+              "Histoire introuvable ou incomplète.",
+            );
+          }
+          const memories = loadRelevantMemories(
+            context,
+            context.story.opening.scene || context.scene.currentAction,
+          );
+          const stream = await streamMessages(
+            buildOpeningMessages(context, memories),
+            typeof model === "string" ? model : undefined,
+          );
+          await streamOllamaResponse(
+            stream,
+            response,
+            (text) => {
+              saveOpeningMessage(id, context.character.id, text);
+            },
+            true,
+          );
+        } catch (error) {
+          if (!response.headersSent)
+            sendJson(
+              response,
+              error instanceof MemoryWorkflowError ? error.status : 502,
+              {
+                error:
+                  error instanceof Error
+                    ? error.message
+                    : "Impossible de démarrer l’histoire.",
+              },
+            );
+          else if (!response.writableEnded)
+            response.end(
+              "\n[L’ouverture n’a pas été enregistrée. Réessaie après avoir vérifié Ollama.]",
+            );
+        } finally {
+          if (lockedId !== undefined) openingInFlight.delete(lockedId);
+        }
+        return;
+      }
+
       const conversationMessagesMatch = url.pathname.match(
         /^\/api\/conversations\/(\d+)\/messages$/,
       );
@@ -721,6 +825,13 @@ export function createAppServer(
       if (request.method === "POST" && conversationMessagesMatch) {
         try {
           const conversationId = Number(conversationMessagesMatch[1]);
+          if (openingInFlight.has(conversationId)) {
+            sendJson(response, 409, {
+              error:
+                "Attends la fin du message d’ouverture avant d’envoyer une réponse.",
+            });
+            return;
+          }
 
           const body = await readJsonBody(request);
 
