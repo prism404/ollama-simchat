@@ -397,7 +397,7 @@ export function listPersonas() {
   try {
     return db
       .prepare(
-        "SELECT id, name, pronouns, description, preferences_json, is_default AS isDefault FROM personas ORDER BY is_default DESC, id ASC",
+        "SELECT id, name, pronouns, description, avatar_path, avatar_crop_json, preferences_json, is_default AS isDefault FROM personas ORDER BY is_default DESC, id ASC",
       )
       .all()
       .map((row) => ({
@@ -405,6 +405,12 @@ export function listPersonas() {
         name: row.name,
         pronouns: row.pronouns,
         description: row.description,
+        avatarUrl:
+          typeof row.avatar_path === "string" &&
+          /^\/api\/persona-images\/\d+$/.test(row.avatar_path)
+            ? row.avatar_path
+            : null,
+        avatarCrop: json(row.avatar_crop_json),
         isDefault: row.isDefault,
         profile: readPersonaProfile(json(row.preferences_json).profile),
       }));

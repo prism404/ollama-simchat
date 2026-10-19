@@ -14,7 +14,7 @@ type Image = {
   isAvatar: number;
 };
 type Pending = { key: string; name: string; dataUrl: string };
-export type GalleryHandle = { flush: (characterId: number) => Promise<void> };
+export type GalleryHandle = { flush: (profileId: number) => Promise<void> };
 async function api<T>(path: string, body?: unknown): Promise<T> {
   const response = await fetch(
     path,
@@ -57,6 +57,7 @@ export const CharacterGallery = forwardRef<
   GalleryHandle,
   {
     id?: number;
+    entity?: "character" | "persona";
     disabled?: boolean;
     onChanged?: () => Promise<void>;
     onWorking?: (value: boolean) => void;
@@ -64,9 +65,19 @@ export const CharacterGallery = forwardRef<
     onAppearance: (text: string) => void;
   }
 >(function CharacterGallery(
-  { id, disabled = false, onChanged, onWorking, onPendingChange, onAppearance },
+  {
+    id,
+    entity = "character",
+    disabled = false,
+    onChanged,
+    onWorking,
+    onPendingChange,
+    onAppearance,
+  },
   ref,
 ) {
+  const collection = entity === "persona" ? "personas" : "characters";
+  const label = entity === "persona" ? "persona" : "personnage";
   const [images, setImages] = useState<Image[]>([]),
     [pending, setPending] = useState<Pending[]>([]),
     [choice, setChoice] = useState("");
@@ -103,7 +114,7 @@ export const CharacterGallery = forwardRef<
   }
   async function load(characterId: number) {
     const data = await api<{ images: Image[] }>(
-      `/api/characters/${characterId}/images`,
+      `/api/${collection}/${characterId}/images`,
     );
     setImages(data.images);
     if (!choiceRef.current) {
@@ -155,7 +166,7 @@ export const CharacterGallery = forwardRef<
       const batch = Array.from(files);
       if (images.length + pendingRef.current.length + batch.length > 20)
         throw new Error(
-          "Maximum 20 références par personnage ; tu peux en ajouter une dizaine à la fois.",
+          `Maximum 20 références par ${label} ; tu peux en ajouter une dizaine à la fois.`,
         );
       const next: Pending[] = [];
       for (const file of batch) {
@@ -193,7 +204,7 @@ export const CharacterGallery = forwardRef<
     try {
       for (const entry of [...pendingRef.current]) {
         const result = await api<{ id: number; url: string }>(
-          `/api/characters/${characterId}/images`,
+          `/api/${collection}/${characterId}/images`,
           { name: entry.name, dataUrl: entry.dataUrl },
         );
         if (choiceRef.current === `pending:${entry.key}`)
@@ -208,7 +219,7 @@ export const CharacterGallery = forwardRef<
         );
       }
       if (choiceRef.current.startsWith("stored:"))
-        await api(`/api/characters/${characterId}/avatar`, {
+        await api(`/api/${collection}/${characterId}/avatar`, {
           imageId: Number(choiceRef.current.slice(7)),
           crop: cropRef.current,
         });
@@ -271,7 +282,7 @@ export const CharacterGallery = forwardRef<
   }
   return (
     <section className="gallery integrated-gallery">
-      <h3>Images du personnage et avatar</h3>
+      <h3>Images du {label} et avatar</h3>
       <p className="muted">
         Ajoute une dizaine d’images dès maintenant, même avant le premier
         enregistrement. Jusqu’à 20 références conservées, 5 Mo par image. Coche

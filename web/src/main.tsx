@@ -11,9 +11,19 @@ type Conversation = {
   storyTitle: string;
   characterId: number | null;
   characterName: string | null;
+  personaName?: string | null;
+  personaAvatarUrl?: string | null;
+  personaAvatarCrop?: AvatarCrop;
   status: string;
 };
-type Message = { id: number; senderType: string; content: string };
+type Message = {
+  id: number;
+  senderType: string;
+  content: string;
+  authorName?: string | null;
+  avatarUrl?: string | null;
+  avatarCrop?: AvatarCrop;
+};
 type Memory = {
   id: number;
   title: string;
@@ -447,7 +457,14 @@ function App() {
     const replyId = -Date.now();
     setMessages((previous) => [
       ...previous,
-      { id: replyId - 1, senderType: "persona", content: text },
+      {
+        id: replyId - 1,
+        senderType: "persona",
+        content: text,
+        authorName: current?.personaName,
+        avatarUrl: current?.personaAvatarUrl,
+        avatarCrop: current?.personaAvatarCrop,
+      },
       { id: replyId, senderType: "character", content: "" },
     ]);
     try {
@@ -719,7 +736,14 @@ function App() {
           )}
         </div>
         {tab === "personas" ? (
-          <Personas />
+          <Personas
+            onChanged={async () => {
+              const data = await api<{ conversations: Conversation[] }>(
+                "/api/conversations",
+              );
+              setConversations(data.conversations);
+            }}
+          />
         ) : tab === "characters" ? (
           <Characters
             key={selectedCharacter ?? "directory"}
@@ -773,11 +797,27 @@ function App() {
               {messages.map((m) => (
                 <article key={m.id} className={`message ${m.senderType}`}>
                   <div className="sender">
-                    {m.senderType === "persona"
-                      ? "TOI"
-                      : m.senderType === "character"
-                        ? "PERSONNAGE"
-                        : "NARRATION"}
+                    {m.senderType === "persona" && (
+                      <Avatar
+                        src={
+                          m.authorName ? m.avatarUrl : current?.personaAvatarUrl
+                        }
+                        name={m.authorName ?? current?.personaName ?? "Toi"}
+                        crop={
+                          m.authorName
+                            ? m.avatarCrop
+                            : current?.personaAvatarCrop
+                        }
+                        className="message-avatar"
+                      />
+                    )}
+                    <span>
+                      {m.senderType === "persona"
+                        ? m.authorName || current?.personaName || "TOI"
+                        : m.senderType === "character"
+                          ? "PERSONNAGE"
+                          : "NARRATION"}
+                    </span>
                   </div>
                   <div className="bubble">{m.content || "…"}</div>
                 </article>

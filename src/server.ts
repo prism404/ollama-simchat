@@ -5,10 +5,10 @@ import {
 } from "./db/character-evolution.ts";
 import { listVisionModels, describeAppearance } from "./ollama/vision.ts";
 import {
-  listCharacterImages,
-  saveCharacterImage,
-  setCharacterAvatar,
-  getCharacterImage,
+  listProfileImages,
+  saveProfileImage,
+  setProfileAvatar,
+  getProfileImage,
 } from "./db/character-images.ts";
 import {
   listCharacters,
@@ -317,16 +317,19 @@ export function createAppServer(
       }
 
       const imageRoute = url.pathname.match(
-        /^\/api\/character-images\/([^/]+)$/,
+        /^\/api\/(?:character|persona)-images\/([^/]+)$/,
       );
       const mediaRoute = url.pathname.match(
-        /^\/api\/characters\/([^/]+)\/(images|avatar)$/,
+        /^\/api\/(?:characters|personas)\/([^/]+)\/(images|avatar)$/,
       );
       if (imageRoute || mediaRoute) {
+        const owner = url.pathname.startsWith("/api/persona")
+          ? "persona"
+          : "character";
         try {
           const id = parsePositiveId((imageRoute ?? mediaRoute)![1]);
           if (imageRoute && request.method === "GET") {
-            const row = getCharacterImage(id);
+            const row = getProfileImage(id, owner);
             response.writeHead(200, {
               "Content-Type": String(row.mime_type),
               "X-Content-Type-Options": "nosniff",
@@ -336,7 +339,7 @@ export function createAppServer(
             return;
           }
           if (mediaRoute?.[2] === "images" && request.method === "GET")
-            sendJson(response, 200, { images: listCharacterImages(id) });
+            sendJson(response, 200, { images: listProfileImages(id, owner) });
           else if (mediaRoute && request.method === "POST") {
             let body: unknown;
             try {
@@ -346,7 +349,7 @@ export function createAppServer(
               throw new MemoryWorkflowError(400, "Objet JSON invalide.");
             }
             if (mediaRoute[2] === "images")
-              sendJson(response, 201, saveCharacterImage(id, body));
+              sendJson(response, 201, saveProfileImage(id, body, owner));
             else {
               const imageId = (body as { imageId?: unknown } | null)?.imageId;
               if (
@@ -361,10 +364,11 @@ export function createAppServer(
               sendJson(
                 response,
                 200,
-                setCharacterAvatar(
+                setProfileAvatar(
                   id,
                   imageId,
                   (body as { crop?: unknown }).crop,
+                  owner,
                 ),
               );
             }

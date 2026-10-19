@@ -1107,3 +1107,29 @@ main {
   line-height: 1.6;
   margin-bottom: 6px;
 }
+.persona-list > button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-align: left;
+}
+.persona-list-avatar {
+  width: 52px;
+  height: 52px;
+  flex: 0 0 52px;
+  border-radius: 12px;
+}
+.sender {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.persona .sender {
+  justify-content: flex-end;
+}
+.message-avatar {
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+  border-radius: 12px;
+}

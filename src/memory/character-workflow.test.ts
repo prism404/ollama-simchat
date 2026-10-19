@@ -438,7 +438,7 @@ test("le choix de modèle est transmis et les en-têtes du stream arrivent avant
   }
 });
 
-test("migration v2 → v4 répétable : avatar et anciennes données conservés", async () => {
+test("migration v2 → v5 répétable : avatar et anciennes données conservés", async () => {
   const { DatabaseSync } = await import("node:sqlite");
   const { readFileSync } = await import("node:fs");
   const { migrateDatabase } = await import("../db/migrations.ts");
@@ -475,7 +475,7 @@ test("migration v2 → v4 répétable : avatar et anciennes données conservés"
       legacy
         .prepare("SELECT value FROM app_meta WHERE key = 'schema_version'")
         .get()?.value,
-      "4",
+      "5",
     );
     assert.equal(
       legacy.prepare("SELECT COUNT(*) AS n FROM character_images").get()?.n,
@@ -1185,5 +1185,251 @@ test("persona détaillé : champs invalides et échec SQL annulent toutes les é
     );
   } finally {
     db.exec("DROP TRIGGER fail_persona_profile");
+  }
+});
+
+test("galerie persona : images isolées, avatar cadré et identité dans la messagerie", async () => {
+  const persona = await request("/api/personas", {
+    name: "Rina avec avatar",
+    pronouns: "elle",
+    description: "Fiche inchangée.",
+    isDefault: false,
+  });
+  const other = await request("/api/personas", {
+    name: "Autre galerie",
+    pronouns: "",
+    description: "",
+    isDefault: false,
+  });
+  const png =
+    "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRf8AAAAASUVORK5CYII=";
+  const uploaded = await request(`/api/personas/${persona.body.id}/images`, {
+    name: "Référence Rina",
+    dataUrl: png,
+  });
+  assert.equal(uploaded.status, 201);
+  assert.ok(uploaded.body.url.startsWith("/api/persona-images/"));
+  const image = await fetch(root + uploaded.body.url);
+  assert.equal(image.headers.get("content-type"), "image/png");
+  assert.deepEqual(
+    Buffer.from(await image.arrayBuffer()),
+    Buffer.from(png.split(",")[1], "base64"),
+  );
+  const crop = { x: 40, y: 15, zoom: 1.4 };
+  assert.equal(
+    (
+      await request(`/api/personas/${persona.body.id}/avatar`, {
+        imageId: uploaded.body.id,
+        crop,
+      })
+    ).status,
+    200,
+  );
+  const listed = (await request("/api/personas")).body.personas.find(
+    (p: { id: number }) => p.id === persona.body.id,
+  );
+  assert.equal(listed.avatarUrl, uploaded.body.url);
+  assert.deepEqual(listed.avatarCrop, crop);
+  assert.equal(listed.description, "Fiche inchangée.");
+  assert.equal(
+    (
+      await request(`/api/personas/${other.body.id}/avatar`, {
+        imageId: uploaded.body.id,
+        crop,
+      })
+    ).status,
+    404,
+  );
+  assert.equal(
+    (await request(`/api/personas/${other.body.id}/images`)).body.images.length,
+    0,
+  );
+  assert.equal(
+    (
+      await request(`/api/personas/${persona.body.id}/avatar`, {
+        imageId: uploaded.body.id,
+        crop: { ...crop, zoom: 9 },
+      })
+    ).status,
+    400,
+  );
+  const character = saveCharacter(form);
+  assert.equal(
+    (await request(`/api/characters/${character.id}/images`)).body.images
+      .length,
+    0,
+  );
+  const story = startStory(character.id, {
+    title: "Avec son avatar",
+    personaId: persona.body.id,
+  });
+  db.prepare(
+    "INSERT INTO messages(conversation_id,sequence_number,sender_type,persona_id,content) VALUES(?,1,'persona',?,?)",
+  ).run(story.conversationId, persona.body.id, "Bonjour");
+  const messages = (
+    await request(`/api/conversations/${story.conversationId}/messages`)
+  ).body.messages;
+  assert.equal(messages[0].avatarUrl, uploaded.body.url);
+  assert.deepEqual(messages[0].avatarCrop, crop);
+  assert.equal(messages[0].authorName, "Rina avec avatar");
+  const conversation = (
+    await request("/api/conversations")
+  ).body.conversations.find(
+    (c: { id: number }) => c.id === story.conversationId,
+  );
+  assert.equal(conversation.personaAvatarUrl, uploaded.body.url);
+  assert.deepEqual(conversation.personaAvatarCrop, crop);
+  const prompt = buildModelMessages(
+    loadConversationContext(story.conversationId),
+    "Bonjour",
+  )[0].content;
+  assert.ok(!prompt.includes(uploaded.body.url));
+  assert.ok(!prompt.includes(png));
+});
+
+test("galerie persona : quota, formats, identifiants et annulation d’une écriture échouée", async () => {
+  const persona = await request("/api/personas", {
+    name: "Galerie contrôlée",
+    pronouns: "",
+    description: "",
+    isDefault: false,
+  });
+  const id = persona.body.id;
+  const png =
+    "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRf8AAAAASUVORK5CYII=";
+  assert.equal(
+    (
+      await request(`/api/personas/${id}/images`, {
+        name: "SVG",
+        dataUrl: "data:image/svg+xml;base64,PHN2Zz4=",
+      })
+    ).status,
+    400,
+  );
+  assert.equal(
+    (
+      await request(`/api/personas/${id}/images`, {
+        name: "Fausse PNG",
+        dataUrl: "data:image/png;base64,YWJj",
+      })
+    ).status,
+    400,
+  );
+  assert.equal(
+    (
+      await request("/api/personas/999999/images", {
+        name: "Référence",
+        dataUrl: png,
+      })
+    ).status,
+    404,
+  );
+  assert.equal((await request("/api/personas/0/images")).status, 400);
+  assert.equal((await request("/api/persona-images/999999")).status, 404);
+  db.exec(
+    "CREATE TRIGGER fail_persona_image BEFORE INSERT ON persona_images BEGIN SELECT RAISE(ABORT,'test image failure'); END;",
+  );
+  try {
+    assert.equal(
+      (
+        await request(`/api/personas/${id}/images`, {
+          name: "Refusée",
+          dataUrl: png,
+        })
+      ).status,
+      500,
+    );
+  } finally {
+    db.exec("DROP TRIGGER fail_persona_image");
+  }
+  assert.equal(
+    (await request(`/api/personas/${id}/images`)).body.images.length,
+    0,
+  );
+  for (let n = 0; n < 20; n++)
+    assert.equal(
+      (
+        await request(`/api/personas/${id}/images`, {
+          name: `Vue ${n}`,
+          dataUrl: png,
+        })
+      ).status,
+      201,
+    );
+  assert.equal(
+    (
+      await request(`/api/personas/${id}/images`, {
+        name: "Trop",
+        dataUrl: png,
+      })
+    ).status,
+    400,
+  );
+  assert.equal(
+    (await request(`/api/personas/${id}/images`)).body.images.length,
+    20,
+  );
+});
+
+test("migration v4 → v5 : personas, préférences et images de personnages conservés", async () => {
+  const { DatabaseSync } = await import("node:sqlite");
+  const { readFileSync } = await import("node:fs");
+  const { migrateDatabase } = await import("../db/migrations.ts");
+  const legacy = new DatabaseSync(join(directory, "legacy-v4.db"));
+  try {
+    for (const filename of [
+      "schema.sql",
+      "migrations/002-memory-review.sql",
+      "migrations/003-character-images.sql",
+      "migrations/004-avatar-crop.sql",
+    ])
+      legacy.exec(
+        readFileSync(new URL(`../db/${filename}`, import.meta.url), "utf8"),
+      );
+    legacy.exec(
+      "UPDATE app_meta SET value='4' WHERE key='schema_version'; INSERT INTO personas(id,name,description,preferences_json) VALUES(1,'Ancienne persona','Texte conservé','{\"profile\":{\"past\":\"Passé établi\"}}'); INSERT INTO characters(id,name,avatar_path) VALUES(1,'Ancien personnage','/api/character-images/1');",
+    );
+    legacy
+      .prepare(
+        "INSERT INTO character_images(id,character_id,name,mime_type,image_data) VALUES(1,1,'Portrait','image/png',?)",
+      )
+      .run(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
+    const before = legacy
+      .prepare("SELECT * FROM personas")
+      .all()
+      .map((row) => ({ ...row }));
+    const images = legacy.prepare("SELECT * FROM character_images").all();
+    legacy.exec("BEGIN");
+    migrateDatabase(legacy);
+    legacy.exec("COMMIT");
+    migrateDatabase(legacy);
+    assert.deepEqual(
+      legacy
+        .prepare("SELECT * FROM personas")
+        .all()
+        .map((row) => ({ ...row })),
+      before.map((row) => ({
+        ...row,
+        avatar_path: null,
+        avatar_crop_json: '{"x":50,"y":50,"zoom":1}',
+      })),
+    );
+    assert.deepEqual(
+      legacy.prepare("SELECT * FROM character_images").all(),
+      images,
+    );
+    assert.equal(
+      legacy
+        .prepare("SELECT value FROM app_meta WHERE key='schema_version'")
+        .get()?.value,
+      "5",
+    );
+    assert.equal(
+      legacy.prepare("SELECT COUNT(*) AS n FROM persona_images").get()?.n,
+      0,
+    );
+    assert.deepEqual(legacy.prepare("PRAGMA foreign_key_check").all(), []);
+  } finally {
+    legacy.close();
   }
 });

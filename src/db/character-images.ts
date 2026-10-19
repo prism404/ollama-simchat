@@ -1,26 +1,56 @@
 import { openDatabase } from "./connection.ts";
 import { MemoryWorkflowError } from "../memory/memory-types.ts";
 
-function requireCharacter(db: ReturnType<typeof openDatabase>, id: number) {
-  if (!db.prepare("SELECT id FROM characters WHERE id = ?").get(id))
-    throw new MemoryWorkflowError(404, "Personnage introuvable.");
+export type MediaOwner = "character" | "persona";
+// SQL identifiers come only from this fixed map, never from request values.
+function mediaTables(owner: MediaOwner) {
+  return owner === "persona"
+    ? {
+        profiles: "personas",
+        images: "persona_images",
+        foreignKey: "persona_id",
+        prefix: "persona-images",
+        label: "persona",
+      }
+    : {
+        profiles: "characters",
+        images: "character_images",
+        foreignKey: "character_id",
+        prefix: "character-images",
+        label: "personnage",
+      };
 }
-export function listCharacterImages(id: number) {
+function requireProfile(
+  db: ReturnType<typeof openDatabase>,
+  id: number,
+  owner: MediaOwner,
+) {
+  const media = mediaTables(owner);
+  if (!db.prepare(`SELECT id FROM ${media.profiles} WHERE id = ?`).get(id))
+    throw new MemoryWorkflowError(404, `${media.label} introuvable.`);
+}
+export function listProfileImages(id: number, owner: MediaOwner = "character") {
+  const media = mediaTables(owner);
   const db = openDatabase();
   try {
-    requireCharacter(db, id);
+    requireProfile(db, id, owner);
     return db
       .prepare(
-        `SELECT i.id, i.name, '/api/character-images/' || i.id AS url,
-      CASE WHEN c.avatar_path = '/api/character-images/' || i.id THEN 1 ELSE 0 END AS isAvatar, c.avatar_crop_json AS avatarCrop
-      FROM character_images i JOIN characters c ON c.id = i.character_id WHERE i.character_id = ? ORDER BY i.id`,
+        `SELECT i.id, i.name, '/api/${media.prefix}/' || i.id AS url,
+      CASE WHEN c.avatar_path = '/api/${media.prefix}/' || i.id THEN 1 ELSE 0 END AS isAvatar, c.avatar_crop_json AS avatarCrop
+      FROM ${media.images} i JOIN ${media.profiles} c ON c.id = i.${media.foreignKey} WHERE i.${media.foreignKey} = ? ORDER BY i.id`,
       )
       .all(id);
   } finally {
     db.close();
   }
 }
-export function saveCharacterImage(id: number, value: unknown) {
+export function saveProfileImage(
+  id: number,
+  value: unknown,
+  owner: MediaOwner = "character",
+) {
+  const media = mediaTables(owner);
   const body = value as { name?: unknown; dataUrl?: unknown } | null;
   if (
     !body ||
@@ -34,29 +64,29 @@ export function saveCharacterImage(id: number, value: unknown) {
   const db = openDatabase();
   try {
     db.exec("BEGIN IMMEDIATE");
-    requireCharacter(db, id);
+    requireProfile(db, id, owner);
     if (
       Number(
         db
           .prepare(
-            "SELECT COUNT(*) AS n FROM character_images WHERE character_id = ?",
+            `SELECT COUNT(*) AS n FROM ${media.images} WHERE ${media.foreignKey} = ?`,
           )
           .get(id)?.n,
       ) >= 20
     )
       throw new MemoryWorkflowError(
         400,
-        "Maximum 20 images par personnage pour cette version.",
+        `Maximum 20 images par ${media.label} pour cette version.`,
       );
     const imageId = Number(
       db
         .prepare(
-          "INSERT INTO character_images(character_id,name,mime_type,image_data) VALUES(?,?,?,?)",
+          `INSERT INTO ${media.images}(${media.foreignKey},name,mime_type,image_data) VALUES(?,?,?,?)`,
         )
         .run(id, body.name.trim(), mime, bytes).lastInsertRowid,
     );
     db.exec("COMMIT");
-    return { id: imageId, url: `/api/character-images/${imageId}` };
+    return { id: imageId, url: `/api/${media.prefix}/${imageId}` };
   } catch (error) {
     db.exec("ROLLBACK");
     throw error;
@@ -64,11 +94,13 @@ export function saveCharacterImage(id: number, value: unknown) {
     db.close();
   }
 }
-export function setCharacterAvatar(
+export function setProfileAvatar(
   id: number,
   imageId: number,
   crop: unknown = { x: 50, y: 50, zoom: 1 },
+  owner: MediaOwner = "character",
 ) {
+  const media = mediaTables(owner);
   const value = crop as { x: number; y: number; zoom: number };
   if (
     !value ||
@@ -89,23 +121,23 @@ export function setCharacterAvatar(
   const db = openDatabase();
   try {
     db.exec("BEGIN IMMEDIATE");
-    requireCharacter(db, id);
+    requireProfile(db, id, owner);
     if (
       !db
         .prepare(
-          "SELECT id FROM character_images WHERE id = ? AND character_id = ?",
+          `SELECT id FROM ${media.images} WHERE id = ? AND ${media.foreignKey} = ?`,
         )
         .get(imageId, id)
     )
       throw new MemoryWorkflowError(
         404,
-        "Cette image n’appartient pas au personnage.",
+        `Cette image n’appartient pas au ${media.label}.`,
       );
     db.prepare(
-      "UPDATE characters SET avatar_path = ?, avatar_crop_json = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-    ).run(`/api/character-images/${imageId}`, JSON.stringify(value), id);
+      `UPDATE ${media.profiles} SET avatar_path = ?, avatar_crop_json = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+    ).run(`/api/${media.prefix}/${imageId}`, JSON.stringify(value), id);
     db.exec("COMMIT");
-    return { avatarUrl: `/api/character-images/${imageId}` };
+    return { avatarUrl: `/api/${media.prefix}/${imageId}` };
   } catch (error) {
     db.exec("ROLLBACK");
     throw error;
@@ -113,13 +145,12 @@ export function setCharacterAvatar(
     db.close();
   }
 }
-export function getCharacterImage(id: number) {
+export function getProfileImage(id: number, owner: MediaOwner = "character") {
+  const media = mediaTables(owner);
   const db = openDatabase();
   try {
     const row = db
-      .prepare(
-        "SELECT mime_type, image_data FROM character_images WHERE id = ?",
-      )
+      .prepare(`SELECT mime_type, image_data FROM ${media.images} WHERE id = ?`)
       .get(id);
     if (!row) throw new MemoryWorkflowError(404, "Image introuvable.");
     return row;
@@ -127,6 +158,14 @@ export function getCharacterImage(id: number) {
     db.close();
   }
 }
+
+// Existing imports retain character-only defaults.
+export {
+  listProfileImages as listCharacterImages,
+  saveProfileImage as saveCharacterImage,
+  setProfileAvatar as setCharacterAvatar,
+  getProfileImage as getCharacterImage,
+};
 
 export function decodeImageDataUrl(dataUrl: string) {
   const match = dataUrl.match(

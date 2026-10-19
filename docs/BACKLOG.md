@@ -7,6 +7,8 @@ proposé = idée non encore engagée. Les priorités proposées restent à arbit
 
 ## Livré
 
+- F34 : galerie et avatar du persona dans sa fiche, import avant création, cadrage position/zoom, description visuelle explicite et avatar dans la messagerie ; migration v5 non destructive, reprise des imports partiels et galeries isolées.
+
 - F33 : persona détaillé (présentation, apparence, passé/présent séparés, personnalité guidée, valeurs, objectifs, fragilités, relations, limites, voix, habitudes et informations publiques/privées). Champs facultatifs, anciennes descriptions conservées et profil transmis uniquement aux histoires de ce persona, sans migration.
 
 - F32 : repli du menu par icône près du nom de l’app, bande de réouverture, création dans l’en-tête, archives ouvrables/refermables et actions Évolution → Modifier → Supprimer.

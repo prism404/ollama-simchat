@@ -8,10 +8,10 @@ sont pas attribuées lorsque seul l'ordre des échanges est connu.
 
 | Commande | Dernier résultat observé | Contexte |
 | --- | --- | --- |
-| `npm run test:memory` | 59 réussis dans Codex ; dernière exécution Windows partagée : 31 réussis | Bases temporaires, sans Ollama |
+| `npm run test:memory` | 62 réussis dans Codex ; dernière exécution Windows partagée : 31 réussis | Bases temporaires, sans Ollama |
 | `npm run format:check` | Réussi après correctif des fins de ligne | Codex et Windows |
 | `npm run typecheck` | Réussi | Codex et Windows |
-| `npm run db:check` | Codex : version 3, intégrité `ok`, zéro erreur, 39 tables/vues ; dernière preuve Windows : version 2 | Bases distinctes |
+| `npm run db:check` | Codex : version 5, intégrité `ok`, zéro erreur, 40 tables/vues ; dernière preuve Windows : version 2 | Bases distinctes |
 | `npm run chat:prompt -- 1` | Identifiants `[1]`, souvenir présent dans le system prompt | Base Windows de l'utilisatrice |
 
 Ces résultats décrivent les versions testées, pas une garantie automatique sur les
@@ -289,3 +289,11 @@ Parcours local : arrêter les serveurs, récupérer main et lancer `npm run db:i
 - Formatage, TypeScript, compilation web et intégrité SQLite réussis. Schéma inchangé v4, aucune migration. La fiche structurée utilise preferences_json.profile sans remplacer les autres préférences.
 - Vérification locale : Personas → choisir une fiche existante, retrouver son ancienne description dans Présentation générale. Compléter passé et présent séparément, utiliser le guide de personnalité, enregistrer, puis retrouver les champs après rechargement. Commencer une histoire avec ce persona et vérifier `chat:prompt` : fiche détaillée présente, champs vides absents. Les mises à jour concernent toutes les histoires utilisant ce même persona.
 - Chromium sur base temporaire : passé/présent et apparence remplis, personnalité construite avec le guide, enregistrement puis rechargement sans perte ; annulation du changement de fiche avec brouillon, largeur mobile 390 px sans débordement et aucune erreur JavaScript. Aucun appel Ollama réel dans ce parcours.
+
+## Galerie du persona — 19 octobre 2026
+
+- 62 tests automatisés passent. Nouveaux scénarios : image binaire relue à l’identique, séparation personnages/personas et entre personas, avatar et cadrage retrouvés dans la liste et les messages, images absentes du prompt de chat, formats/identifiants invalides refusés, quota de 20 références, échec SQL annulé.
+- Migration v4 → v5 répétable testée avec descriptions, préférences et images de personnages préexistantes ; aucune perte. Les migrations v1/v2 → v5 passent aussi. `db:init`, `db:check`, `format:check`, `typecheck` et `web:build` réussis : schéma 5, intégrité ok, zéro erreur de clé étrangère, 40 tables/vues.
+- Chromium sur base temporaire : trois images préparées avant création, avatar choisi et cadré ; panne simulée au deuxième import puis reprise sans doublon ; analyse vision simulée remplissant l’apparence ; rechargement conservant galerie et cadrage ; avatar affiché sur le message du persona, mobile 390 px sans débordement et aucune erreur JavaScript. Aucun Ollama réel utilisé pour cette vérification.
+
+Parcours local : arrêter les serveurs, récupérer main puis lancer `npm run db:init`. Dans Personas, choisir sa fiche, ajouter ses images, choisir l’avatar et régler le cadrage avant Enregistrer mon persona. Les fichiers restent locaux ; l’analyse visuelle est déclenchée uniquement par son bouton. La description générée reste un brouillon à relire et enregistrer. Les images ne sont pas envoyées automatiquement dans les conversations.

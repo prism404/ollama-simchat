@@ -430,3 +430,7 @@ Après cette mise à jour, arrêter les serveurs puis exécuter `npm run db:init
 ### Persona détaillé
 
 Dans **Personas**, chaque fiche comporte identité et apparence, passé établi, situation présente, personnalité guidée, valeurs, motivations, fragilités, relations, limites, voix, habitudes et informations publiques/privées. Seul le nom est obligatoire. L’ancienne description reste dans Présentation générale. Les champs sont transmis au modèle pour le persona associé à l’histoire ; les modifications concernent les prochains échanges de toutes ses histoires. Le personnage doit respecter les décisions de la joueuse et ne pas traiter les secrets du dossier comme automatiquement connus. Aucun appel IA supplémentaire ni migration n’est nécessaire.
+
+### Images et avatar du persona
+
+Après récupération de cette version, arrêter les serveurs et lancer `npm run db:init` pour appliquer la migration v5 sans supprimer les données. Dans **Personas → Présentation**, ajouter des images (PNG/JPEG/WebP, 5 Mo chacune, 20 maximum), choisir l’avatar, régler le cadrage et enregistrer le persona. L’avatar apparaît aussi dans la messagerie. Les références peuvent servir à une description d’apparence via le bouton d’analyse vision ; elles ne sont jamais ajoutées automatiquement au prompt du chat.

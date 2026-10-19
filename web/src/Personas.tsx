@@ -1,4 +1,6 @@
-import { useEffect, useState } from "react";
+import { Avatar, type AvatarCrop } from "./Avatar";
+import { CharacterGallery, type GalleryHandle } from "./CharacterGallery";
+import { useEffect, useState, useRef } from "react";
 import { PersonalityGuide } from "./PersonalityGuide";
 import {
   PERSONA_FIELDS,
@@ -14,6 +16,8 @@ type Persona = {
   description: string;
   isDefault: number;
   profile?: PersonaProfile;
+  avatarUrl?: string | null;
+  avatarCrop?: AvatarCrop;
 };
 type Form = {
   name: string;
@@ -61,7 +65,7 @@ const sections = [
     help: "Le dossier sert de repère de cohérence au modèle. Il ne signifie pas que le personnage sait déjà tout de ton persona.",
   },
 ] as const;
-export function Personas() {
+export function Personas({ onChanged }: { onChanged?: () => Promise<void> }) {
   const [items, setItems] = useState<Persona[]>([]),
     [id, setId] = useState<number | null>(null),
     [form, setForm] = useState<Form>(blank),
@@ -69,7 +73,11 @@ export function Personas() {
     [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
     [notice, setNotice] = useState("");
-  const dirty = JSON.stringify(form) !== baseline;
+  const gallery = useRef<GalleryHandle>(null);
+  const [mediaBusy, setMediaBusy] = useState(false),
+    [mediaDirty, setMediaDirty] = useState(false),
+    [galleryKey, setGalleryKey] = useState(0);
+  const dirty = JSON.stringify(form) !== baseline || mediaDirty;
   const profileLength = Object.values(form.profile).join("").length;
   async function load() {
     const response = await fetch("/api/personas");
@@ -106,6 +114,8 @@ export function Personas() {
           profile: readPersonaProfile(item.profile),
         }
       : blank();
+    setMediaDirty(false);
+    setGalleryKey((previous) => previous + 1);
     setId(item?.id ?? null);
     setForm(next);
     setBaseline(JSON.stringify(next));
@@ -138,7 +148,7 @@ export function Personas() {
         </div>
       )}
       <div className="actions">
-        <button disabled={busy} onClick={() => choose()}>
+        <button disabled={busy || mediaBusy} onClick={() => choose()}>
           Créer un persona
         </button>
       </div>
@@ -147,12 +157,21 @@ export function Personas() {
           <button
             className={id === item.id ? "persona-selected" : "secondary"}
             aria-pressed={id === item.id}
-            disabled={busy}
+            disabled={busy || mediaBusy}
             key={item.id}
+            aria-label={`${item.name}${item.isDefault ? " · par défaut" : ""}`}
             onClick={() => choose(item)}
           >
-            {item.name}
-            {item.isDefault ? " · par défaut" : ""}
+            <Avatar
+              src={item.avatarUrl}
+              name={item.name}
+              crop={item.avatarCrop}
+              className="persona-list-avatar"
+            />
+            <span>
+              {item.name}
+              {item.isDefault ? " · par défaut" : ""}
+            </span>
           </button>
         ))}
       </div>
@@ -160,7 +179,7 @@ export function Personas() {
         className="character-form"
         onSubmit={async (e) => {
           e.preventDefault();
-          if (busy) return;
+          if (busy || mediaBusy) return;
           setBusy(true);
           setError("");
           setNotice("");
@@ -190,10 +209,20 @@ export function Personas() {
             setId(result.id);
             setForm(saved);
             setBaseline(JSON.stringify(saved));
-            setNotice(
-              "Persona enregistré. Sa fiche détaillée accompagnera les prochains échanges des histoires qui l’utilisent.",
-            );
+            try {
+              await gallery.current?.flush(result.id);
+            } catch (error) {
+              setError(
+                `La fiche du persona est enregistrée. Certaines images ou le cadrage restent à enregistrer : ${(error as Error).message}`,
+              );
+              await load();
+              return;
+            }
             await load();
+            await onChanged?.();
+            setNotice(
+              "Persona, images et avatar enregistrés. Sa fiche détaillée accompagnera les prochains échanges des histoires qui l’utilisent.",
+            );
           } catch (e) {
             setError((e as Error).message);
           } finally {
@@ -202,7 +231,7 @@ export function Personas() {
         }}
       >
         {sections.map((section) => (
-          <fieldset disabled={busy} key={section.id}>
+          <fieldset disabled={busy || mediaBusy} key={section.id}>
             <legend>{section.title}</legend>
             <p className="muted">{section.help}</p>
             {section.id === "identity" && (
@@ -272,7 +301,7 @@ export function Personas() {
             {section.id === "personality" && (
               <PersonalityGuide
                 key={id ?? "new"}
-                disabled={busy}
+                disabled={busy || mediaBusy}
                 onApply={(text) => profileField("personality", text)}
               />
             )}
@@ -293,9 +322,21 @@ export function Personas() {
                 </label>
               ),
             )}
+            {section.id === "identity" && (
+              <CharacterGallery
+                key={galleryKey}
+                ref={gallery}
+                id={id ?? undefined}
+                entity="persona"
+                disabled={busy}
+                onWorking={setMediaBusy}
+                onPendingChange={setMediaDirty}
+                onAppearance={(text) => profileField("appearance", text)}
+              />
+            )}
           </fieldset>
         ))}
-        <fieldset disabled={busy}>
+        <fieldset disabled={busy || mediaBusy}>
           <legend>Enregistrer mon persona</legend>
           <label>
             <input
@@ -321,7 +362,10 @@ export function Personas() {
           </p>
           <button
             disabled={
-              busy || !form.name.trim() || profileLength > PERSONA_PROFILE_LIMIT
+              busy ||
+              mediaBusy ||
+              !form.name.trim() ||
+              profileLength > PERSONA_PROFILE_LIMIT
             }
           >
             {busy ? "Enregistrement…" : "Enregistrer mon persona"}

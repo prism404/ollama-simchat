@@ -95,3 +95,9 @@ La suppression d’un personnage est un archivage : confirmation par son nom exa
 La fiche incarnée dispose de six sections guidées : présentation, passé et présent, personnalité et vie intérieure, relations et limites, voix et détails vivants, informations connues ou privées. Un guide local aide à construire une personnalité contextualisée. Les champs restent facultatifs, seul le nom est requis ; les indications de rédaction ne sont pas enregistrées comme des faits.
 
 La description existante reste conservée dans Présentation générale. Le profil est enregistré dans les préférences SQLite existantes et accompagne le contexte du persona choisi pour l’histoire. Le prompt demande au personnage d’adapter son comportement sans écrire les actes ou pensées du persona ni considérer automatiquement ses informations privées comme connues. Il s’agit d’instructions au modèle, pas d’un mécanisme d’autorisation ou d’une garantie de fidélité de ses réponses. La fiche détaillée est limitée à 16 000 caractères, en plus de la présentation, pour contenir la taille du contexte.
+
+## Images et avatar du persona
+
+Chaque persona peut conserver jusqu’à 20 images PNG/JPEG/WebP de 5 Mo maximum chacune et choisir l’une d’elles comme avatar, avec position et zoom. La même galerie que pour les personnages est réutilisée ; l’avatar apparaît dans la sélection du persona et sur ses messages. Les médias sont séparés par type de fiche et propriétaire.
+
+La migration v5 ajoute persona_images ainsi que les colonnes d’avatar des personas ; elle conserve les textes, préférences, histoires et images existantes. Une analyse explicite peut proposer l’apparence à partir de dix références au maximum. Le chat reçoit le texte enregistré, sans les images.

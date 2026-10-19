@@ -9,7 +9,8 @@ export function migrateDatabase(db: DatabaseSync) {
     version !== "1" &&
     version !== "2" &&
     version !== "3" &&
-    version !== "4"
+    version !== "4" &&
+    version !== "5"
   ) {
     throw new Error(
       `Version de schéma non prise en charge : ${String(version)}`,
@@ -38,7 +39,7 @@ export function migrateDatabase(db: DatabaseSync) {
       "UPDATE app_meta SET value = '3', updated_at = CURRENT_TIMESTAMP WHERE key = 'schema_version'",
     ).run();
   }
-  if (version !== "4") {
+  if (version !== "4" && version !== "5") {
     db.exec(
       readFileSync(
         new URL("./migrations/004-avatar-crop.sql", import.meta.url),
@@ -47,6 +48,17 @@ export function migrateDatabase(db: DatabaseSync) {
     );
     db.prepare(
       "UPDATE app_meta SET value = '4', updated_at = CURRENT_TIMESTAMP WHERE key = 'schema_version'",
+    ).run();
+  }
+  if (version !== "5") {
+    db.exec(
+      readFileSync(
+        new URL("./migrations/005-persona-images.sql", import.meta.url),
+        "utf8",
+      ),
+    );
+    db.prepare(
+      "UPDATE app_meta SET value='5', updated_at=CURRENT_TIMESTAMP WHERE key='schema_version'",
     ).run();
   }
 }
